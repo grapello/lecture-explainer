@@ -1,4 +1,4 @@
-# QM Lecture Explainer
+# Lecture Explainer
 
 An iPhone app (Swift / SwiftUI) that turns lecture slide decks into detailed explanations using Claude. It is a native port of a web prototype built for the course *Quantum Mechanics for Engineers*.
 
