@@ -8,6 +8,27 @@
 import Foundation
 import SwiftData
 
+var calendar: Calendar = {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = .current          // or a fixed TimeZone if your dates are zone-agnostic
+    cal.firstWeekday = 2             // Monday
+    return cal
+}()
+
+let formatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "dd.MM.yyyy"
+    f.locale = Locale(identifier: "en_US_POSIX")  // stops the user's locale settings from changing how the date is read
+    f.timeZone = calendar.timeZone
+    return f
+}()
+func mondayOfWeek(for date: Date, in cal: Calendar) -> Date {
+    let day = cal.startOfDay(for: date)
+    let weekday = cal.component(.weekday, from: day)   // Sun=1, Mon=2, … Sat=7
+    let daysSinceMonday = (weekday + 5) % 7             // Mon→0, Tue→1, … Sun→6
+    return cal.date(byAdding: .day, value: -daysSinceMonday, to: day)!
+}
+
 enum SourceKind: String, Codable { case deck, notes, reference }
 enum LectureStatus: String, Codable { case needsDeck, deckAdded, explained }
 
@@ -116,11 +137,16 @@ enum ScheduleGenerator{
 }
 
 enum WeekCalendar{
-    static func weekNumber(of date: Date, firstLecture: Date, calendar: Calendar) -> Int{
-        fatalError("TODO")
+    
+    static func weekNumber(date: Date, firstLecture: Date, calendar: Calendar) -> Int{
+        let semMon = mondayOfWeek(for: firstLecture, in: calendar)
+        let curMon = mondayOfWeek(for: date, in: calendar)
+        let days  = calendar.dateComponents([.day], from: semMon, to: curMon).day!
+        let week = (days/7) + 1
+        return max(1, week)   // dates before the first lecture count as week 1
     }
     
-    static func isDue(_ date: Date, now: Date) -> Bool{
+    static func isDue(date: Date, now: Date) -> Bool{
         fatalError("TODO")
     }
 
