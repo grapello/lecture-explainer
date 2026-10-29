@@ -6,8 +6,19 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		4785D0643092926000E95876 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000100000000;
+			remoteInfo = "Lecture-Explainer";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* Lecture-Explainer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Lecture-Explainer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4785D0603092926000E95876 /* Lecture-ExplainerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Lecture-ExplainerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +27,20 @@
 			path = "Lecture-Explainer";
 			sourceTree = "<group>";
 		};
+		4785D0613092926000E95876 /* Lecture-ExplainerTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Lecture-ExplainerTests";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		000000000000000130000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		4785D05D3092926000E95876 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
 			);
@@ -31,6 +52,7 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000010 /* Lecture-Explainer */,
+				4785D0613092926000E95876 /* Lecture-ExplainerTests */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -39,6 +61,7 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000120 /* Lecture-Explainer.app */,
+				4785D0603092926000E95876 /* Lecture-ExplainerTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -64,6 +87,27 @@
 			productReference = 000000000000000000000120 /* Lecture-Explainer.app */;
 			productType = "com.apple.product-type.application";
 		};
+		4785D05F3092926000E95876 /* Lecture-ExplainerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4785D0663092926000E95876 /* Build configuration list for PBXNativeTarget "Lecture-ExplainerTests" */;
+			buildPhases = (
+				4785D05C3092926000E95876 /* Sources */,
+				4785D05D3092926000E95876 /* Frameworks */,
+				4785D05E3092926000E95876 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4785D0653092926000E95876 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				4785D0613092926000E95876 /* Lecture-ExplainerTests */,
+			);
+			name = "Lecture-ExplainerTests";
+			productName = "Lecture-ExplainerTests";
+			productReference = 4785D0603092926000E95876 /* Lecture-ExplainerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -71,11 +115,15 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2630;
+				LastSwiftUpdateCheck = 2710;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					000000000000000100000000 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					4785D05F3092926000E95876 = {
+						CreatedOnToolsVersion = 27.1;
+						TestTargetID = 000000000000000100000000;
 					};
 				};
 			};
@@ -94,12 +142,18 @@
 			projectRoot = "";
 			targets = (
 				000000000000000100000000 /* Lecture-Explainer */,
+				4785D05F3092926000E95876 /* Lecture-ExplainerTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		000000000000000140000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		4785D05E3092926000E95876 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -112,7 +166,20 @@
 			files = (
 			);
 		};
+		4785D05C3092926000E95876 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		4785D0653092926000E95876 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000100000000 /* Lecture-Explainer */;
+			targetProxy = 4785D0643092926000E95876 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		000000000000000011000000 /* Debug configuration for PBXProject "Lecture-Explainer" */ = {
@@ -321,6 +388,49 @@
 			};
 			name = Release;
 		};
+		4785D0673092926000E95876 /* Debug configuration for PBXNativeTarget "Lecture-ExplainerTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Gabara.Lecture-ExplainerTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Lecture-Explainer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Lecture-Explainer";
+			};
+			name = Debug;
+		};
+		4785D0683092926000E95876 /* Release configuration for PBXNativeTarget "Lecture-ExplainerTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Gabara.Lecture-ExplainerTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Lecture-Explainer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Lecture-Explainer";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -337,6 +447,14 @@
 			buildConfigurations = (
 				000000000000000111000000 /* Debug configuration for PBXNativeTarget "Lecture-Explainer" */,
 				000000000000000112000000 /* Release configuration for PBXNativeTarget "Lecture-Explainer" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		4785D0663092926000E95876 /* Build configuration list for PBXNativeTarget "Lecture-ExplainerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4785D0673092926000E95876 /* Debug configuration for PBXNativeTarget "Lecture-ExplainerTests" */,
+				4785D0683092926000E95876 /* Release configuration for PBXNativeTarget "Lecture-ExplainerTests" */,
 			);
 			defaultConfigurationName = Release;
 		};
