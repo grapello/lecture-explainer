@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .DS_Store
 xcuserdata/
 DerivedData/
@@ -7,4 +8,53 @@ build/
 *.xcuserstate
 .env
 *.xcconfig
+=======
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcscmblueprint
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.pins
+Package.resolved
+
+# CocoaPods / Carthage
+Pods/
+Carthage/Build/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Secrets: never commit keys
+.env
+.env.*
+*.xcconfig
+Secrets.*
+secrets.*
+*.pem
+*.p12
+*.mobileprovision
+
+# Test material: course PDFs may be copyrighted, keep them out of the repo
+>>>>>>> 68f644057f3aac973d38872866d6ed417ff21850
 *.pdf
