@@ -56,7 +56,16 @@ struct ProjectListView: View {
                 ProjectDetailView(project: project)
             }
             .toolbar {
-                Button("New Project", systemImage: "plus") { showingNewProject = true }
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("New Project", systemImage: "plus") { showingNewProject = true }
+                }
             }
             .sheet(isPresented: $showingNewProject) {
                 NewProjectView { project in path = [project] }
@@ -90,7 +99,8 @@ struct ProjectListView: View {
     private func delete(_ project: Project) {
         path.removeAll { $0 == project }   // don't leave a deleted project on screen
         // The cascade rules on Project remove its lectures, sources, rules and explanations.
-        // TODO (step 4): also delete the PDF copies in app storage, which SwiftData doesn't know about.
+        // The PDF copies on disk are separate files SwiftData doesn't know about.
+        FileStore.shared.removeFolder(project.folderName)
         context.delete(project)
     }
 

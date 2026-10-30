@@ -29,7 +29,17 @@ func mondayOfWeek(for date: Date, in cal: Calendar) -> Date {
     return cal.date(byAdding: .day, value: -daysSinceMonday, to: day)!
 }
 
-enum SourceKind: String, Codable { case deck, notes, reference }
+enum SourceKind: String, Codable, CaseIterable {
+    case deck, notes, reference
+
+    var displayName: String {
+        switch self {
+        case .deck: "Slide deck"
+        case .notes: "Derivation notes"
+        case .reference: "Reference"
+        }
+    }
+}
 enum LectureStatus: String, Codable { case needsDeck, deckAdded, explained }
 
 /// The top-level container: one course (or lecture series).
@@ -44,6 +54,9 @@ final class Project {
     // document rather than a lecture series (see "Open questions" in the roadmap).
     var startDate: Date?
     var endDate: Date?
+    // Name of this project's folder for imported PDFs (see FileStore). A random UUID,
+    // not the project name, so renaming the project never moves files.
+    var folderName: String = UUID().uuidString
 
     @Relationship(deleteRule: .cascade, inverse: \Lecture.project)
         var lectures: [Lecture] = []
@@ -69,10 +82,20 @@ final class Lecture{
 
     var title: String
     var project: Project?
-    var status: LectureStatus
     var addedAt: Date
     var date: Date
     var number: Int
+    // true when the date was set by hand: added as an extra lecture or moved with the
+    // date picker. Re-applying the schedule never moves or deletes such a lecture.
+    var isManual: Bool = false
+
+    /// Worked out from what the lecture has, instead of stored, so it can never go
+    /// stale: importing a deck or saving an explanation updates it automatically.
+    var status: LectureStatus {
+        if !explanations.isEmpty { return .explained }
+        if sources.contains(where: { $0.kind == .deck }) { return .deckAdded }
+        return .needsDeck
+    }
 
     @Relationship(deleteRule: .cascade, inverse: \Explanation.lecture)
     var explanations: [Explanation] = []
@@ -82,11 +105,11 @@ final class Lecture{
     @Relationship(deleteRule: .nullify, inverse: \SourceMaterial.lecture)
     var sources: [SourceMaterial] = []
 
-    init(number: Int, date: Date, title: String = "") {
-        self.status = .needsDeck
+    init(number: Int, date: Date, title: String = "", isManual: Bool = false) {
         self.number = number
         self.date = date
         self.title = title
+        self.isManual = isManual
         self.addedAt = .now
        }
 }
@@ -101,9 +124,9 @@ final class SourceMaterial{
     var project: Project?
     var lecture: Lecture?         // nil for project-wide references and not-yet-assigned files
     var slide: Int?               // e.g. derivation notes for slide 22
-    // Where the copy lives inside the app's own storage, relative to Application Support.
-    // Relative, because the absolute container path changes between installs.
-    // Filled in by the PDF import (roadmap step 4).
+    // Where the copy lives inside the app's own storage, relative to FileStore's
+    // base folder ("<project folder>/<file name>"). Relative, because iOS can change
+    // the app container's absolute path between installs and updates.
     var storedPath: String?
     var addedAt: Date
 

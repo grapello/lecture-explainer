@@ -5,18 +5,31 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
-/// One project: its instructions, its lectures grouped by week, its files and
-/// its explanations. The week list gets its full version in roadmap step 3.
+/// One project: its instructions, its schedule, its lectures grouped by week,
+/// its files and its explanations. The + menu imports PDFs, adds a lecture by
+/// hand, or opens the schedule editor.
 struct ProjectDetailView: View {
     // @Bindable lets this view hand out bindings into the model ($project.name, ...).
     // Plain `let project` would be enough to read it; editing needs @Bindable.
     @Bindable var project: Project
 
+    @State private var editingSchedule = false
+    @State private var addingLecture = false
+    @State private var importingFiles = false
+    @State private var importMessage: String?
+
     // Computed on each redraw from the stored lecture dates, so a lecture moved by
     // hand lands in its new week straight away. `\.date` works as a (Lecture) -> Date closure.
     private var weeks: [(week: Int, items: [Lecture])] {
         WeekCalendar.groupedByWeek(project.lectures, date: \.date, calendar: calendar)
+    }
+
+    /// The week today falls in, or nil before the first lecture's week / without lectures.
+    private var currentWeek: Int? {
+        guard let first = project.lectures.map(\.date).min(), first <= .now else { return nil }
+        return WeekCalendar.weekNumber(date: .now, firstLecture: first, calendar: calendar)
     }
 
     private var explanations: [Explanation] {
@@ -25,7 +38,7 @@ struct ProjectDetailView: View {
 
     // Project-wide files (no lecture) first, then by lecture number.
     private var sources: [SourceMaterial] {
-        project.sources.sorted { ($0.lecture?.number ?? 0) < ($1.lecture?.number ?? 0) }
+        project.sources.sorted { ($0.lecture?.number ?? 0, $0.fileName) < ($1.lecture?.number ?? 0, $1.fileName) }
     }
 
     var body: some View {
@@ -44,33 +57,50 @@ struct ProjectDetailView: View {
                 }
             }
 
-            Section("Weeks") {
-                if weeks.isEmpty {
-                    Text("No lectures yet")
+            Section("Schedule") {
+                Button {
+                    editingSchedule = true
+                } label: {
+                    Label(scheduleSummary, systemImage: "calendar")
+                }
+            }
+
+            if weeks.isEmpty {
+                Section("Weeks") {
+                    Text("No lectures yet. Set up the schedule, or add a lecture from the + menu.")
                         .foregroundStyle(.secondary)
                 }
-                ForEach(weeks, id: \.week) { group in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Week \(group.week)")
-                            .font(.headline)
-                        ForEach(group.items) { lecture in
+            }
+            // One section per week. A Section can't sit inside another Section, so the
+            // weeks are top-level sections between Schedule and Sources.
+            ForEach(weeks, id: \.week) { group in
+                let isCurrent = group.week == currentWeek
+                Section {
+                    ForEach(group.items) { lecture in
+                        NavigationLink {
+                            LectureDetailView(lecture: lecture)
+                        } label: {
                             LectureRow(lecture: lecture)
                         }
+                        // A light tint of the app's accent colour marks this week's lectures.
+                        .listRowBackground(isCurrent ? Color.accentColor.opacity(0.12) : nil)
                     }
-                    .padding(.vertical, 4)
-                    // List starts a row's separator under its first piece of text, which here
-                    // is the status label on the right. Pin it to the left edge instead.
-                    .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+                } header: {
+                    WeekHeader(week: group.week, firstDate: group.items[0].date, isCurrent: isCurrent)
                 }
             }
 
             Section("Sources") {
                 if sources.isEmpty {
-                    Text("No files yet")
+                    Text("No files yet. Import PDFs from the + menu.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(sources) { source in
-                    SourceRow(source: source)
+                    NavigationLink {
+                        SourceDetailView(source: source)
+                    } label: {
+                        SourceRow(source: source)
+                    }
                 }
             }
 
@@ -81,14 +111,7 @@ struct ProjectDetailView: View {
                 }
                 ForEach(explanations) { explanation in
                     NavigationLink {
-                        // Plain text for now; Markdown rendering is roadmap step 6.
-                        ScrollView {
-                            Text(explanation.markdown)
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding()
-                        }
-                        .navigationTitle(explanation.title)
+                        ExplanationView(explanation: explanation)
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(explanation.title.isEmpty ? "Untitled" : explanation.title)
@@ -101,6 +124,70 @@ struct ProjectDetailView: View {
             }
         }
         .navigationTitle(project.name)
+        .toolbar {
+            Menu("Add", systemImage: "plus") {
+                Button("Import PDFs", systemImage: "doc.badge.plus") { importingFiles = true }
+                Button("Add Lecture", systemImage: "calendar.badge.plus") { addingLecture = true }
+                Button("Edit Schedule", systemImage: "calendar") { editingSchedule = true }
+            }
+        }
+        .sheet(isPresented: $editingSchedule) {
+            ScheduleEditorView(project: project)
+        }
+        .sheet(isPresented: $addingLecture) {
+            AddLectureView(project: project)
+        }
+        // The system Files picker. It hands back URLs outside the app's sandbox,
+        // which SourceImporter copies in (see the comments there).
+        .fileImporter(isPresented: $importingFiles, allowedContentTypes: [.pdf],
+                      allowsMultipleSelection: true) { result in
+            switch result {
+            case .success(let urls):
+                let outcome = SourceImporter.importFiles(urls, into: project)
+                importMessage = outcome.summary
+            case .failure(let error):
+                importMessage = error.localizedDescription
+            }
+        }
+        .alert("Import", isPresented: Binding(get: { importMessage != nil },
+                                              set: { if !$0 { importMessage = nil } })) {
+            Button("OK") {}
+        } message: {
+            Text(importMessage ?? "")
+        }
+    }
+
+    /// "Tue 10:15, Thu 14:00 · 13 Oct – 2 Feb", or a prompt when there is no schedule.
+    private var scheduleSummary: String {
+        let rules = project.scheduleRules.sorted { ($0.weekday + 5) % 7 < ($1.weekday + 5) % 7 }
+        guard let first = rules.first else { return "Set up weekly lectures" }
+        let slots = rules.map { rule in
+            let day = calendar.shortWeekdaySymbols[rule.weekday - 1]
+            return "\(day) \(String(format: "%02d:%02d", rule.hour, rule.minute))"
+        }.joined(separator: ", ")
+        let range = first.startDate.formatted(.dateTime.day().month(.abbreviated)) + " – "
+            + first.endDate.formatted(.dateTime.day().month(.abbreviated))
+        return "\(slots) · \(range)"
+    }
+}
+
+/// "Week 4 · 26 Oct – 1 Nov", with a "This week" tag on the current one.
+private struct WeekHeader: View {
+    let week: Int
+    let firstDate: Date
+    let isCurrent: Bool
+
+    var body: some View {
+        let monday = mondayOfWeek(for: firstDate, in: calendar)
+        let sunday = calendar.date(byAdding: .day, value: 6, to: monday)!
+        HStack {
+            Text("Week \(week) · \(monday.formatted(.dateTime.day().month(.abbreviated))) – \(sunday.formatted(.dateTime.day().month(.abbreviated)))")
+            if isCurrent {
+                Text("This week")
+                    .font(.caption.bold())
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
     }
 }
 
@@ -110,7 +197,7 @@ private struct LectureRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Lecture \(lecture.number)")
+                Text(lecture.title.isEmpty ? "Lecture \(lecture.number)" : "\(lecture.number). \(lecture.title)")
                 // .dateTime formats follow the user's locale: "Tue 27 Oct, 10:15" or "Tue, Oct 27, 10:15 AM".
                 Text(lecture.date, format: .dateTime.weekday(.abbreviated).day().month().hour().minute())
                     .font(.caption)
@@ -153,31 +240,6 @@ private struct StatusLabel: View {
             Text(text)
         }
         .foregroundStyle(color)
-    }
-}
-
-private struct SourceRow: View {
-    let source: SourceMaterial
-
-    var body: some View {
-        Label {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(source.fileName)
-                Text(source.lecture.map { "Lecture \($0.number)" } ?? "Whole project")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        } icon: {
-            Image(systemName: icon)
-        }
-    }
-
-    private var icon: String {
-        switch source.kind {
-        case .deck: "rectangle.on.rectangle"
-        case .notes: "pencil.line"
-        case .reference: "book.closed"
-        }
     }
 }
 

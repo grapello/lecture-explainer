@@ -8,6 +8,9 @@ Build in small steps. Each step should run before moving on. Each numbered secti
 - **Stored lecture dates.** Lecture dates are real data on each lecture, chosen in a calendar, not computed from a start date. Weeks are derived from the dates.
 - **Own API key.** The user pastes an Anthropic API key into settings; it is stored in the Keychain and never in the repo.
 - **Local files.** Imported PDFs are copied into app storage so they survive relaunch.
+- **Status is computed.** A lecture's status (needs deck / ready / explained) is worked out from its files and explanations, never stored, so it can't go stale.
+- **Re-applying a schedule is careful.** Saving the schedule adds missing lectures and removes untouched ones on days no longer scheduled, but never touches lectures moved or added by hand, or that have files or explanations. Lectures are then renumbered by date (`SchedulePlanner`).
+- **API details.** Messages API over URLSession (no Swift SDK exists), API version `2026-10-21`, default model `claude-opus-5-5` at effort `high`, streaming always on, and `fallbacks: "default"` so a declined request is retried on a suitable model server-side.
 
 ## Data model (SwiftData)
 
@@ -37,30 +40,30 @@ Use `@Relationship(deleteRule: .cascade)` so deleting a project removes its lect
 
 ## 3. Calendar and lecture dates
 
-- [ ] Pick a weekly schedule: weekday, time, and date range
-- [ ] Preview generated lecture dates before saving
-- [ ] Skip dates (holidays, cancelled lectures) and add extra ones with `MultiDatePicker`
-- [ ] Edit a single lecture's date with a graphical `DatePicker`
-- [ ] Week list grouped by week, with a highlight on the current one and a "not due yet" state for future lectures
+- [x] Pick a weekly schedule: weekday, time, and date range
+- [x] Preview generated lecture dates before saving
+- [x] Skip dates (holidays, cancelled lectures) with `MultiDatePicker`; add extra lectures one at a time with "Add Lecture" (a date *and time* picker, which `MultiDatePicker` can't do)
+- [x] Edit a single lecture's date with a graphical `DatePicker`
+- [x] Week list grouped by week, with a highlight on the current one and a "not due yet" state for future lectures
 - [ ] Optional: export lectures to the iOS Calendar with EventKit (ask for permission, add the usage description in Info.plist)
 - [ ] Optional: local reminders with UserNotifications
 
 ## 4. PDF import
 
-- [ ] `.fileImporter` for multiple PDFs
-- [ ] Call `startAccessingSecurityScopedResource()`, then copy each file into app storage under the project
-- [ ] Assign an unnumbered file to a lecture manually
-- [ ] Project-wide reference source (for example a symbols sheet), separate from per-lecture decks
-- [ ] `PDFReader` with PDFKit: page text and page thumbnails
-- [ ] Remove an imported file
+- [x] `.fileImporter` for multiple PDFs
+- [x] Call `startAccessingSecurityScopedResource()`, then copy each file into app storage under the project
+- [x] Assign an unnumbered file to a lecture manually
+- [x] Project-wide reference source (for example a symbols sheet), separate from per-lecture decks
+- [x] `PDFReader` with PDFKit: page text and page thumbnails
+- [x] Remove an imported file
 
 ## 5. Claude API
 
-- [ ] `KeychainStore` for the API key and a settings screen
-- [ ] Single request to the Messages API with a hardcoded prompt
-- [ ] Streaming response (URLSession bytes, server-sent events)
-- [ ] Error handling: invalid key, rate limit, request too large, cancelled
-- [ ] Stop button via Task cancellation
+- [x] `KeychainStore` for the API key and a settings screen
+- [x] Single request to the Messages API with a hardcoded prompt (Settings > Test Connection)
+- [x] Streaming response (URLSession bytes, server-sent events)
+- [x] Error handling: invalid key, rate limit, request too large, cancelled
+- [x] Stop button via Task cancellation
 
 ## 6. Wire it together
 
@@ -79,7 +82,7 @@ Use `@Relationship(deleteRule: .cascade)` so deleting a project removes its lect
 
 ## Open questions
 
-- Send the PDF directly to the API or extract text and images locally? Check current API docs for limits.
+- ~~Send the PDF directly to the API or extract text and images locally?~~ **Decided: extract text in the app** with PDFKit (`PDFReader`). Requests stay small and you can see exactly what Claude gets (a file's Text tab). Trade-off: equations drawn as images and scanned pages give little text.
 - Should a project always be a lecture series, or can it be a single document? (If always lectures, the schedule can stay required.)
 - Is the optional EventKit export worth it, or is the in-app calendar enough?
-- Minimum iOS version: `MultiDatePicker` needs iOS 16, and the newer EventKit access APIs need iOS 17.
+- ~~Minimum iOS version~~ **Decided by the Xcode project: iOS 27**, so `MultiDatePicker` (iOS 16) and the newer EventKit access APIs (iOS 17) are both available.

@@ -7,6 +7,7 @@
 #if DEBUG
 import Foundation
 import SwiftData
+import UIKit
 
 /// An in-memory store filled with example courses. Used by the #Preview blocks, and
 /// by the app itself when launched with the `--sample-data` argument (handy until
@@ -40,23 +41,49 @@ enum SampleData {
             let lecture = Lecture(number: number, date: date)
             lecture.project = qm
             // The first three are explained, the next two have a deck, the rest have nothing yet.
+            // (Lecture.status is worked out from these, so it isn't set here.)
             if number <= 5 {
-                let deck = SourceMaterial(fileName: String(format: "QM4Eng_L%02d_Slides.pdf", number), kind: .deck)
+                let name = String(format: "QM4Eng_L%02d_Slides.pdf", number)
+                let deck = SourceMaterial(fileName: name, kind: .deck)
                 deck.project = qm
                 deck.lecture = lecture
-                lecture.status = .deckAdded
+                deck.storedPath = writePDF(named: name, folder: qm.folderName, pages: [
+                    "Lecture \(number): Introduction",
+                    "The wave function ψ(x, t) describes the state of a particle.",
+                    "|ψ(x, t)|² is the probability density of finding it at x.",
+                ])
             }
             if number <= 3 {
                 let explanation = Explanation(markdown: "# Lecture \(number)\n\nExample explanation text.",
                                               title: "Lecture \(number)")
                 explanation.lecture = lecture
-                lecture.status = .explained
             }
         }
         let symbols = SourceMaterial(fileName: "Symbols_v1.pdf", kind: .reference)
         symbols.project = qm
+        symbols.storedPath = writePDF(named: "Symbols_v1.pdf", folder: qm.folderName,
+                                      pages: ["ψ  wave function\nħ  reduced Planck constant\nĤ  Hamiltonian"])
 
         return container
+    }
+
+    /// Draws a small real PDF (one text line per page) into the app's file store, so
+    /// the file screens have pages and text to show. Returns its stored path.
+    private static func writePDF(named name: String, folder: String, pages: [String]) -> String? {
+        let temp = FileManager.default.temporaryDirectory.appending(path: name)
+        let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 800, height: 600))
+        do {
+            try renderer.writePDF(to: temp) { context in
+                for text in pages {
+                    context.beginPage()
+                    (text as NSString).draw(in: CGRect(x: 60, y: 60, width: 680, height: 480),
+                                            withAttributes: [.font: UIFont.systemFont(ofSize: 32)])
+                }
+            }
+            return try FileStore.shared.copyIn(temp, projectFolder: folder)
+        } catch {
+            return nil
+        }
     }
 }
 #endif
