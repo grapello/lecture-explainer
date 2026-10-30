@@ -7,7 +7,7 @@ struct MyApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [Project.self, Lecture.self,
-                              SourceMaterial.self, Explanation.self])
+        .modelContainer(for: [Project.self, Lecture.self, SourceMaterial.self,
+                              Explanation.self, ScheduleRule.self])
     }
 }

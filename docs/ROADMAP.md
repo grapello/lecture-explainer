@@ -21,11 +21,11 @@ Use `@Relationship(deleteRule: .cascade)` so deleting a project removes its lect
 
 ## 1. Model layer and logic (no UI)
 
-- [ ] SwiftData models: `Project`, `Lecture`, `SourceMaterial`, `Explanation`
-- [ ] `FileNameParser`: extract the lecture number from names like `QM4Eng_L05_...pdf`; classify as deck, derivation notes, or reference
-- [ ] `WeekCalendar`: derive the week number and "due" status from a lecture's date
-- [ ] `ScheduleGenerator`: turn a `ScheduleRule` (weekday, time, range, skipped dates) into a list of lecture dates
-- [ ] Unit tests for all of the above, including bad file names, holidays, and lectures moved by hand
+- [x] SwiftData models: `Project`, `Lecture`, `SourceMaterial`, `Explanation`
+- [x] `FileNameParser`: extract the lecture number from names like `QM4Eng_L05_...pdf`; classify as deck, derivation notes, or reference
+- [x] `WeekCalendar`: derive the week number and "due" status from a lecture's date
+- [x] `ScheduleGenerator`: turn a `ScheduleRule` (weekday, time, range, skipped dates) into a list of lecture dates
+- [x] Unit tests for all of the above, including bad file names, holidays, and lectures moved by hand
 
 ## 2. Projects and navigation
 

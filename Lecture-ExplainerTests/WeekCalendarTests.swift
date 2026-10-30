@@ -33,4 +33,21 @@ struct WeekCalendarTests{
                                              firstLecture: first, calendar: cal)
         #expect(result == expected)
     }
+
+    @Test func isDueOnlyOnceTheLectureHasStarted() {
+        let lecture = date(2026, 10, 14)                       // 10:00
+        #expect(!WeekCalendar.isDue(date: lecture, now: date(2026, 10, 13)))
+        #expect(WeekCalendar.isDue(date: lecture, now: lecture))  // exactly at the start
+        #expect(WeekCalendar.isDue(date: lecture, now: date(2026, 10, 20)))
+    }
+
+    // A lecture moved by hand: the week and due state follow the stored date,
+    // not the schedule it was generated from.
+    @Test func movedLectureFollowsItsNewDate() {
+        let first = date(2026, 10, 12)
+        let lecture = Lecture(number: 2, date: date(2026, 10, 16))   // Friday, week 1
+        lecture.date = date(2026, 10, 19)                             // moved to Monday
+        #expect(WeekCalendar.weekNumber(date: lecture.date, firstLecture: first, calendar: cal) == 2)
+        #expect(!WeekCalendar.isDue(date: lecture.date, now: date(2026, 10, 17)))
+    }
 }
