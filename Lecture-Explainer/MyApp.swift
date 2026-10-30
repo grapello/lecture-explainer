@@ -16,9 +16,14 @@ struct MyApp: App {
                                    Explanation.self, ScheduleRule.self)
     }()
 
+    // One Explainer for the whole app, so a running explanation keeps going (and
+    // stays visible) when you move between screens. See Explainer.swift.
+    @State private var explainer = Explainer()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(explainer)
         }
         .modelContainer(container)
     }

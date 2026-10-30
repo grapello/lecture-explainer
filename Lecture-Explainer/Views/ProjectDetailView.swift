@@ -14,11 +14,26 @@ struct ProjectDetailView: View {
     // @Bindable lets this view hand out bindings into the model ($project.name, ...).
     // Plain `let project` would be enough to read it; editing needs @Bindable.
     @Bindable var project: Project
+    @Environment(\.modelContext) private var context
+    @Environment(Explainer.self) private var explainer
 
     @State private var editingSchedule = false
     @State private var addingLecture = false
     @State private var importingFiles = false
     @State private var importMessage: String?
+    @State private var confirmingExplainAll = false
+    @State private var hasAPIKey = false
+
+    /// Lectures with a deck and no explanation yet, in date order: what
+    /// "Explain All Ready" sends.
+    private var readyLectures: [Lecture] {
+        project.lectures.filter { $0.status == .deckAdded }.sorted { $0.date < $1.date }
+    }
+
+    /// Whether the Explainer's current or failed run belongs to this project.
+    private var showsRun: Bool {
+        explainer.current?.project == project || explainer.failure?.lecture.project == project
+    }
 
     // Computed on each redraw from the stored lecture dates, so a lecture moved by
     // hand lands in its new week straight away. `\.date` works as a (Lecture) -> Date closure.
@@ -43,6 +58,10 @@ struct ProjectDetailView: View {
 
     var body: some View {
         List {
+            if showsRun {
+                runSection
+            }
+
             Section("Instructions") {
                 NavigationLink {
                     InstructionsEditorView(project: project)
@@ -125,11 +144,26 @@ struct ProjectDetailView: View {
         }
         .navigationTitle(project.name)
         .toolbar {
+            if hasAPIKey {
+                // A separate button, not in the + menu: it is the main thing to do here.
+                Button("Explain All Ready", systemImage: "sparkles") { confirmingExplainAll = true }
+                    .disabled(readyLectures.isEmpty || explainer.isRunning)
+            }
             Menu("Add", systemImage: "plus") {
                 Button("Import PDFs", systemImage: "doc.badge.plus") { importingFiles = true }
                 Button("Add Lecture", systemImage: "calendar.badge.plus") { addingLecture = true }
                 Button("Edit Schedule", systemImage: "calendar") { editingSchedule = true }
             }
+        }
+        .onAppear { hasAPIKey = KeychainStore.read() != nil }
+        // Explaining costs API credit, so a run of several lectures asks first.
+        .confirmationDialog("Explain \(readyLectures.count) lecture\(readyLectures.count == 1 ? "" : "s") with Claude?",
+                            isPresented: $confirmingExplainAll, titleVisibility: .visible) {
+            Button("Explain \(readyLectures.count)") {
+                explainer.explain(readyLectures, context: context)
+            }
+        } message: {
+            Text("Every lecture with a deck and no explanation yet is sent, one after another. This uses your API credit.")
         }
         .sheet(isPresented: $editingSchedule) {
             ScheduleEditorView(project: project)
@@ -154,6 +188,33 @@ struct ProjectDetailView: View {
             Button("OK") {}
         } message: {
             Text(importMessage ?? "")
+        }
+    }
+
+    /// Progress of an "Explain" run, or why it stopped. Tapping the lecture opens
+    /// it, where the answer can be watched as it is written.
+    @ViewBuilder private var runSection: some View {
+        Section("Explaining") {
+            if let lecture = explainer.current {
+                NavigationLink {
+                    LectureDetailView(lecture: lecture)
+                } label: {
+                    HStack {
+                        ProgressView()
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Lecture \(lecture.number)")
+                            Text("\(explainer.finished + 1) of \(explainer.total) · \(explainer.liveText.isEmpty ? "thinking" : "writing")")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                Button("Stop", role: .destructive) { explainer.stop() }
+            } else if let failure = explainer.failure {
+                Label("Stopped at Lecture \(failure.lecture.number): \(failure.message)",
+                      systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.red)
+            }
         }
     }
 
@@ -252,4 +313,5 @@ private struct StatusLabel: View {
         ProjectDetailView(project: project)
     }
     .modelContainer(container)
+    .environment(Explainer())
 }

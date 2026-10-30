@@ -54,8 +54,7 @@ enum SampleData {
                 ])
             }
             if number <= 3 {
-                let explanation = Explanation(markdown: "# Lecture \(number)\n\nExample explanation text.",
-                                              title: "Lecture \(number)")
+                let explanation = Explanation(markdown: exampleMarkdown(number), title: "Lecture \(number)")
                 explanation.lecture = lecture
             }
         }
@@ -65,6 +64,28 @@ enum SampleData {
                                       pages: ["ψ  wave function\nħ  reduced Planck constant\nĤ  Hamiltonian"])
 
         return container
+    }
+
+    /// An explanation shaped like a real one, so the Markdown rendering can be seen.
+    private static func exampleMarkdown(_ number: Int) -> String {
+        """
+        ## Page 1: Introduction
+
+        Lecture \(number) is about the **wave function** ψ(x, t), which describes the state of a particle.
+
+        ## Pages 2–3: Probability
+
+        - |ψ(x, t)|² is the *probability density* of finding the particle at x.
+        - The total probability is 1:
+          ∫ |ψ(x, t)|² dx = 1
+
+        | Symbol | Meaning | Unit |
+        |---|---|---|
+        | ψ | wave function | m^(-1/2) |
+        | ħ | reduced Planck constant | J·s |
+
+        > Only |ψ|² can be measured, not ψ itself.
+        """
     }
 
     /// Draws a small real PDF (one text line per page) into the app's file store, so

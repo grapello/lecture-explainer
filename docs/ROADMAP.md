@@ -11,6 +11,9 @@ Build in small steps. Each step should run before moving on. Each numbered secti
 - **Status is computed.** A lecture's status (needs deck / ready / explained) is worked out from its files and explanations, never stored, so it can't go stale.
 - **Re-applying a schedule is careful.** Saving the schedule adds missing lectures and removes untouched ones on days no longer scheduled, but never touches lectures moved or added by hand, or that have files or explanations. Lectures are then renumbered (`SchedulePlanner`).
 - **Deck numbers win.** A lecture with a deck keeps the number in the deck's file name; the others are numbered by date around it without reusing a deck's number. After a holiday the list shows a gap (no Lecture 6) rather than relabelling the L07 deck as Lecture 6.
+- **Two ways to explain.** Third-party apps can't use a Claude.ai plan (Free/Pro/Max) directly; only the API can be called from the app, billed separately. So the app offers both: the API for automatic, batch explanations, and a manual round trip through the Claude app for users who only have a plan. Both use the same prompt.
+- **Maths as Unicode.** The prompt asks Claude for ψ, ħ, ∂ψ/∂t rather than LaTeX, because SwiftUI can't render LaTeX without a web view or a third-party library.
+- **A run stops at the first error.** No credit, an invalid key or a rate limit would make every later lecture fail the same way. Retrying overloaded/rate-limited requests automatically is a possible later improvement.
 - **API details.** Messages API over URLSession (no Swift SDK exists), API version `2026-10-21`, default model `claude-opus-5-5` at effort `high`, streaming always on, and `fallbacks: "default"` so a declined request is retried on a suitable model server-side.
 
 ## Data model (SwiftData)
@@ -68,11 +71,14 @@ Use `@Relationship(deleteRule: .cascade)` so deleting a project removes its lect
 
 ## 6. Wire it together
 
-- [ ] Build the prompt from the project's instructions, the reference source, the lecture's notes and the deck
-- [ ] Run all lectures that have decks and are not yet explained
-- [ ] Live view while streaming, then save with SwiftData
-- [ ] Markdown rendering (headings, tables, code)
-- [ ] Copy text button
+- [x] Build the prompt from the project's instructions, the reference source, the lecture's notes and the deck (one `PromptBuilder` used by both modes below)
+- [x] **Explain with API** (when a key is saved): one lecture, or "Explain All Ready" for all lectures that have decks and are not yet explained
+- [x] **Send to Claude app** (no key needed, uses the user's Claude plan): hand the built prompt to the Claude app via the share sheet, with a Copy Prompt fallback; one lecture at a time
+- [x] Paste the answer back: a "Paste Explanation" action on the lecture that saves the clipboard text as its explanation
+- [x] Live view while streaming, then save with SwiftData
+- [x] Markdown rendering (headings, lists, tables, code)
+- [x] Copy text button
+- [ ] Not verified yet: a full real explanation through the API (the account had no credit), the Claude app in the share sheet (not installable in the Simulator), and pasting (the Simulator's clipboard stayed empty)
 
 ## 7. Polish
 

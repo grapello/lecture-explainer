@@ -11,6 +11,7 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .modelContainer(SampleData.makeContainer())
+        .environment(Explainer())
 }
 
 #Playground {

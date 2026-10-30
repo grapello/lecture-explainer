@@ -130,9 +130,11 @@ private struct ProjectRow: View {
 #Preview {
     ProjectListView()
         .modelContainer(SampleData.makeContainer())
+        .environment(Explainer())
 }
 
 #Preview("Empty") {
     ProjectListView()
         .modelContainer(for: Project.self, inMemory: true)
+        .environment(Explainer())
 }
