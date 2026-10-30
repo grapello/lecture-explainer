@@ -19,7 +19,7 @@ import SwiftData
 ///     - moved or added by hand, or has files/explanations → keep it
 ///     - otherwise (an untouched generated lecture)        → remove it
 ///
-/// Afterwards all lectures are renumbered 1, 2, 3, … in date order.
+/// Afterwards the lectures are renumbered (see `numbers(pinned:)`).
 enum SchedulePlanner {
     /// The parts of an existing lecture the plan depends on. A plain struct rather
     /// than `Lecture`, so the planning logic can be tested without SwiftData.
@@ -81,13 +81,45 @@ enum SchedulePlanner {
         renumber(project)
     }
 
-    /// Numbers the project's lectures 1, 2, 3, … by date. Called after anything that
-    /// adds, removes or moves a lecture, so "Lecture 5" is always the fifth one.
+    /// Renumbers the project's lectures. Called after anything that adds, removes or
+    /// moves a lecture.
     static func renumber(_ project: Project) {
         // isDeleted: a lecture deleted a moment ago can still be in the array until save.
         let ordered = project.lectures.filter { !$0.isDeleted }.sorted { $0.date < $1.date }
-        for (index, lecture) in ordered.enumerated() where lecture.number != index + 1 {
-            lecture.number = index + 1
+        let numbers = numbers(pinned: ordered.map(deckNumber))
+        for (lecture, number) in zip(ordered, numbers) where lecture.number != number {
+            lecture.number = number
+        }
+    }
+
+    /// The lecture number in the name of the lecture's deck (`QM4Eng_L07_…` → 7), if any.
+    /// The deck names the course's own numbering, so it wins over the date order.
+    static func deckNumber(of lecture: Lecture) -> Int? {
+        lecture.sources
+            .filter { $0.kind == .deck }
+            .compactMap { FileNameParser.parse($0.fileName).lectureNumber }
+            .min()
+    }
+
+    /// Lecture numbers for lectures in date order, where `pinned[i]` is the number
+    /// lecture i must keep (from its deck) or nil if it has none.
+    ///
+    /// Pinned lectures keep their number. The others count on from the lecture before
+    /// them, skipping numbers a deck already uses. So when a holiday removes lecture 6,
+    /// the lecture holding deck L07 stays "Lecture 7" and the list shows a gap:
+    ///
+    ///     pinned: [nil, nil, 7, nil]  →  [1, 2, 7, 8]
+    ///     pinned: [nil, nil, nil]     →  [1, 2, 3]       (no decks: plain date order)
+    static func numbers(pinned: [Int?]) -> [Int] {
+        let taken = Set(pinned.compactMap { $0 })
+        var last = 0
+        return pinned.map { pin in
+            if let pin {
+                last = max(last, pin)
+                return pin
+            }
+            repeat { last += 1 } while taken.contains(last)
+            return last
         }
     }
 }

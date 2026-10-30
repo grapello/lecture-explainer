@@ -80,7 +80,8 @@ docs/ROADMAP.md
 ### Dates and weeks
 
 - `ScheduleGenerator` turns a rule into dates with `Calendar.enumerateDates`, asking for "the next Tuesday at 10:15" again and again. That keeps the local time right across daylight-saving changes, which adding 7 × 24 h would not. Skipped days are matched by calendar day.
-- `SchedulePlanner` applies a saved schedule to lectures that may already exist. It adds missing days and removes untouched lectures on days no longer scheduled. It keeps anything moved or added by hand (`isManual`) or that has files or explanations. Then it renumbers lectures 1, 2, 3… by date.
+- `SchedulePlanner` applies a saved schedule to lectures that may already exist. It adds missing days and removes untouched lectures on days no longer scheduled. It keeps anything moved or added by hand (`isManual`) or that has files or explanations. Then it renumbers the lectures.
+- **Numbering:** a lecture with a deck keeps the number in the deck's name (`QM4Eng_L07_…` → Lecture 7), because that is the course's own numbering. The other lectures are numbered by date around them, never reusing a deck's number. So when a holiday removes the sixth lecture day, the lecture with deck L07 stays "Lecture 7" and the list simply has no Lecture 6. Without any decks this is plain date order: 1, 2, 3…
 - `WeekCalendar` gives week numbers counted from the Monday of the first lecture's week (dates before it count as week 1), groups lectures by week, and decides "due" (start time has passed).
 
 All date logic takes a `Calendar` parameter, so tests use a fixed Europe/Berlin calendar and give the same result on any machine.

@@ -9,7 +9,8 @@ Build in small steps. Each step should run before moving on. Each numbered secti
 - **Own API key.** The user pastes an Anthropic API key into settings; it is stored in the Keychain and never in the repo.
 - **Local files.** Imported PDFs are copied into app storage so they survive relaunch.
 - **Status is computed.** A lecture's status (needs deck / ready / explained) is worked out from its files and explanations, never stored, so it can't go stale.
-- **Re-applying a schedule is careful.** Saving the schedule adds missing lectures and removes untouched ones on days no longer scheduled, but never touches lectures moved or added by hand, or that have files or explanations. Lectures are then renumbered by date (`SchedulePlanner`).
+- **Re-applying a schedule is careful.** Saving the schedule adds missing lectures and removes untouched ones on days no longer scheduled, but never touches lectures moved or added by hand, or that have files or explanations. Lectures are then renumbered (`SchedulePlanner`).
+- **Deck numbers win.** A lecture with a deck keeps the number in the deck's file name; the others are numbered by date around it without reusing a deck's number. After a holiday the list shows a gap (no Lecture 6) rather than relabelling the L07 deck as Lecture 6.
 - **API details.** Messages API over URLSession (no Swift SDK exists), API version `2026-10-21`, default model `claude-opus-5-5` at effort `high`, streaming always on, and `fallbacks: "default"` so a declined request is retried on a suitable model server-side.
 
 ## Data model (SwiftData)

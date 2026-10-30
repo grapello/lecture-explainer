@@ -106,6 +106,9 @@ enum ClaudeError: LocalizedError, Equatable {
         switch (type, status) {
         case ("authentication_error", _), (_, 401): .invalidAPIKey
         case ("billing_error", _), (_, 402): .billing(message)
+        // An account without credit gets a 400 "invalid_request_error" whose message
+        // names the credit balance; it's a billing problem, not a bad request.
+        case _ where message.localizedCaseInsensitiveContains("credit balance"): .billing(message)
         case ("permission_error", _), (_, 403): .permissionDenied(message)
         case ("not_found_error", _), (_, 404): .notFound(message)
         case ("request_too_large", _), (_, 413): .requestTooLarge

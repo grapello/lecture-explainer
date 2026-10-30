@@ -33,6 +33,8 @@ struct ClaudeStreamParsingTests {
         #expect(ClaudeError.from(type: "overloaded_error", message: "", status: nil) == .overloaded)   // in-stream: no status
         #expect(ClaudeError.from(type: nil, message: "too big", status: 413) == .requestTooLarge)    // no JSON body
         #expect(ClaudeError.from(type: "invalid_request_error", message: "bad", status: 400) == .badRequest("bad"))
+        let noCredit = "Your credit balance is too low to access the Anthropic API."
+        #expect(ClaudeError.from(type: "invalid_request_error", message: noCredit, status: 400) == .billing(noCredit))
         #expect(ClaudeError.overloaded.isRetryable)
         #expect(!ClaudeError.invalidAPIKey.isRetryable)
     }

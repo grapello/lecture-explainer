@@ -72,9 +72,10 @@ struct SchedulePlannerTests {
         SchedulePlanner.apply(to: project, context: context, calendar: cal)
         try context.save()
         let remaining = project.lectures.sorted { $0.date < $1.date }
-        // 20 Oct is gone; 27 Oct stays because it has a deck; numbers close the gap.
+        // 20 Oct is gone; 27 Oct stays because it has a deck, and keeps the deck's
+        // number 3, so there is no lecture 2 and 3 Nov follows as lecture 4.
         #expect(remaining.map { cal.component(.day, from: $0.date) } == [13, 27, 3])
-        #expect(remaining.map(\.number) == [1, 2, 3])
+        #expect(remaining.map(\.number) == [1, 3, 4])
     }
 
     @Test func renumberFollowsAHandMovedLecture() throws {
@@ -90,5 +91,35 @@ struct SchedulePlannerTests {
         let byDate = project.lectures.sorted { $0.date < $1.date }
         #expect(byDate.map { cal.component(.day, from: $0.date) } == [13, 14, 15])
         #expect(byDate.map(\.number) == [1, 2, 3])
+    }
+
+    // MARK: - numbers(pinned:): deck numbers win
+
+    @Test(arguments: [
+        ([nil, nil, nil], [1, 2, 3]),             // no decks: date order
+        ([nil, nil, 7, nil], [1, 2, 7, 8]),       // a holiday left a gap before L07
+        ([nil, 2, nil, nil], [1, 2, 3, 4]),       // deck matches the date order
+        ([nil, nil, nil, 2], [1, 3, 4, 2]),       // deck L02 on a later date: 2 isn't reused
+        ([5, nil], [5, 6]),                       // first lectures missing entirely
+    ] as [([Int?], [Int])])
+    func numbersKeepDeckNumbers(pinned: [Int?], expected: [Int]) {
+        #expect(SchedulePlanner.numbers(pinned: pinned) == expected)
+    }
+
+    @Test func renumberKeepsTheDeckNumberAfterAHandAddedLecture() throws {
+        let container = try TestSupport.makeContainer()
+        let project = Project(name: "QM")
+        container.mainContext.insert(project)
+        for (number, day) in [(1, 13), (2, 20)] {
+            Lecture(number: number, date: date(10, day)).project = project
+        }
+        let deck = SourceMaterial(fileName: "QM4Eng_L02_Spin.pdf", kind: .deck)
+        deck.project = project
+        deck.lecture = project.lectures.first { $0.number == 2 }
+        // An extra lecture is added between them; it must not take the deck's number.
+        Lecture(number: 0, date: date(10, 15), isManual: true).project = project
+        SchedulePlanner.renumber(project)
+        let byDate = project.lectures.sorted { $0.date < $1.date }
+        #expect(byDate.map(\.number) == [1, 3, 2])
     }
 }
