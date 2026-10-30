@@ -1,15 +1,16 @@
 import SwiftUI
+import SwiftData
 import Playgrounds
 
 struct ContentView: View {
     var body: some View {
-        Text("Hello, world!")
-            .padding()
+        ProjectListView()
     }
 }
 
 #Preview {
     ContentView()
+        .modelContainer(SampleData.makeContainer())
 }
 
 #Playground {

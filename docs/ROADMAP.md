@@ -29,11 +29,11 @@ Use `@Relationship(deleteRule: .cascade)` so deleting a project removes its lect
 
 ## 2. Projects and navigation
 
-- [ ] Projects list screen: create, rename, delete (with confirmation)
-- [ ] Create-project flow: name and instructions prompt
-- [ ] Project detail screen with sections for Weeks, Sources, Explanations
-- [ ] Editable per-project instructions (replaces the fixed prompt from the prototype)
-- [ ] Light and dark mode check
+- [x] Projects list screen: create, rename, delete (with confirmation)
+- [x] Create-project flow: name and instructions prompt
+- [x] Project detail screen with sections for Weeks, Sources, Explanations
+- [x] Editable per-project instructions (replaces the fixed prompt from the prototype)
+- [x] Light and dark mode check
 
 ## 3. Calendar and lecture dates
 

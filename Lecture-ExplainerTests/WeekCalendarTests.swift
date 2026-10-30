@@ -50,4 +50,13 @@ struct WeekCalendarTests{
         #expect(WeekCalendar.weekNumber(date: lecture.date, firstLecture: first, calendar: cal) == 2)
         #expect(!WeekCalendar.isDue(date: lecture.date, now: date(2026, 10, 17)))
     }
+
+    @Test func groupsByWeekInOrder() {
+        // Given out of order on purpose; Thu 30 Oct is week 3, there is no lecture in between.
+        let dates = [date(2026, 10, 20), date(2026, 10, 15), date(2026, 10, 30), date(2026, 10, 13)]
+        let groups = WeekCalendar.groupedByWeek(dates, date: { $0 }, calendar: cal)
+        #expect(groups.map(\.week) == [1, 2, 3])
+        #expect(groups[0].items == [date(2026, 10, 13), date(2026, 10, 15)])
+        #expect(WeekCalendar.groupedByWeek([Date](), date: { $0 }, calendar: cal).isEmpty)
+    }
 }

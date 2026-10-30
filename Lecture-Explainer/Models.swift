@@ -241,6 +241,22 @@ enum WeekCalendar{
         return max(1, week)   // dates before the first lecture count as week 1
     }
     
+    /// Groups items into weeks counted from the earliest one (week 1), weeks in order
+    /// and items sorted by date inside each week. Used by the week list.
+    /// Generic over `T`, with a closure that reads the date, so the same code works on
+    /// `Lecture` objects in the app and on plain `Date`s in tests (no SwiftData needed).
+    static func groupedByWeek<T>(_ items: [T], date: (T) -> Date,
+                                 calendar: Calendar) -> [(week: Int, items: [T])]{
+        guard let first = items.map(date).min() else { return [] }
+        let byWeek = Dictionary(grouping: items) {
+            weekNumber(date: date($0), firstLecture: first, calendar: calendar)
+        }
+        // Dictionaries have no order, so sort the week numbers before building the result.
+        return byWeek.keys.sorted().map { week in
+            (week: week, items: byWeek[week]!.sorted { date($0) < date($1) })
+        }
+    }
+
     /// A lecture is due once its start time has passed; until then the week list
     /// shows it as "not due yet". `now` is a parameter (defaulting to the real clock)
     /// so tests can pin it to a fixed moment instead of depending on today's date.
