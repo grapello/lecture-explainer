@@ -6,6 +6,7 @@
 import Foundation
 import Observation
 import SwiftData
+import SwiftUI
 
 /// Sends lectures to Claude through the API, one after another, and saves each
 /// answer as an Explanation.
@@ -27,8 +28,9 @@ final class Explainer {
     private(set) var total = 0
     /// When the API was busy: the time of the next attempt (shown as a countdown).
     private(set) var retryAt: Date?
-    /// Why the last run stopped early, shown on the project and lecture screens.
-    private(set) var failure: (lecture: Lecture, message: String)?
+    /// Why the last run stopped early, shown on the project and lecture screens, and
+    /// the lectures it didn't get to (the failed one first), for "Try Again".
+    private(set) var failure: (lecture: Lecture, message: String, remaining: [Lecture])?
 
     private var queue: [Lecture] = []
     private var replacing = false
@@ -62,6 +64,18 @@ final class Explainer {
         task = Task { await run(context: context) }
     }
 
+    /// Continues a run that stopped: the failed lecture and the ones after it,
+    /// replacing old explanations if the first attempt was going to.
+    func retry(context: ModelContext) {
+        guard let failure else { return }
+        explain(failure.remaining, replacing: replacing, context: context)
+    }
+
+    /// Hides the "stopped at…" message, e.g. after the user has read it.
+    func dismissFailure() {
+        failure = nil
+    }
+
     /// Stops the run. The lecture being written is not saved; finished ones are kept.
     func stop() {
         task?.cancel()
@@ -88,12 +102,16 @@ final class Explainer {
                 let answer = try await answerWithRetries(request)
                 save(answer, for: lecture, context: context)
                 finished += 1
+                // A run can take minutes; VoiceOver users hear when each lecture is done,
+                // whichever screen they are on.
+                announce("Lecture \(lecture.number) explained")
             } catch is CancellationError {
                 return
             } catch {
                 // Stop the whole run: the usual causes (no credit, invalid key) would
                 // make every following lecture fail the same way.
-                failure = (lecture, error.localizedDescription)
+                failure = (lecture, error.localizedDescription, [lecture] + queue)
+                announce("Explaining stopped at Lecture \(lecture.number). \(error.localizedDescription)")
                 return
             }
         }
@@ -158,6 +176,10 @@ final class Explainer {
         // Saved right away, so a finished explanation survives the app being closed
         // during the next lecture of a long run.
         try? context.save()
+    }
+
+    private func announce(_ message: String) {
+        AccessibilityNotification.Announcement(message).post()
     }
 
     // The model and effort chosen in Settings. @AppStorage there stores them in

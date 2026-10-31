@@ -14,13 +14,16 @@ struct ProjectDetailView: View {
     // @Bindable lets this view hand out bindings into the model ($project.name, ...).
     // Plain `let project` would be enough to read it; editing needs @Bindable.
     @Bindable var project: Project
+    /// Opens the schedule editor straight away: used for a project just made from a
+    /// template, whose copied lecture times need new semester dates.
+    var opensSchedule = false
     @Environment(\.modelContext) private var context
     @Environment(Explainer.self) private var explainer
 
     @State private var editingSchedule = false
     @State private var addingLecture = false
     @State private var importingFiles = false
-    @State private var importMessage: String?
+    @State private var importOutcome: (title: String, message: String)?
     @State private var confirmingExplainAll = false
     @State private var hasAPIKey = false
 
@@ -28,6 +31,12 @@ struct ProjectDetailView: View {
     /// "Explain All Ready" sends.
     private var readyLectures: [Lecture] {
         project.lectures.filter { $0.status == .deckAdded }.sorted { $0.date < $1.date }
+    }
+
+    /// A new project shows a checklist of the steps to its first explanation until
+    /// it has lectures and files.
+    private var needsSetup: Bool {
+        project.lectures.isEmpty || project.sources.isEmpty
     }
 
     /// Whether the Explainer's current or failed run belongs to this project.
@@ -61,33 +70,31 @@ struct ProjectDetailView: View {
             if showsRun {
                 runSection
             }
-
-            Section("Instructions") {
-                NavigationLink {
-                    InstructionsEditorView(project: project)
-                } label: {
-                    if project.instructions.isEmpty {
-                        Text("Add instructions for Claude")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text(project.instructions)
-                            .lineLimit(3)
+            // The checklist covers instructions and schedule, so their own sections
+            // only appear once the project is set up.
+            if needsSetup {
+                gettingStarted
+            } else {
+                Section("Instructions") {
+                    NavigationLink {
+                        InstructionsEditorView(project: project)
+                    } label: {
+                        if project.instructions.isEmpty {
+                            Text("Add instructions for Claude")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(project.instructions)
+                                .lineLimit(3)
+                        }
                     }
                 }
-            }
 
-            Section("Schedule") {
-                Button {
-                    editingSchedule = true
-                } label: {
-                    Label(scheduleSummary, systemImage: "calendar")
-                }
-            }
-
-            if weeks.isEmpty {
-                Section("Weeks") {
-                    Text("No lectures yet. Set up the schedule, or add a lecture from the + menu.")
-                        .foregroundStyle(.secondary)
+                Section("Schedule") {
+                    Button {
+                        editingSchedule = true
+                    } label: {
+                        Label(scheduleSummary, systemImage: "calendar")
+                    }
                 }
             }
             // One section per week. A Section can't sit inside another Section, so the
@@ -109,34 +116,34 @@ struct ProjectDetailView: View {
                 }
             }
 
-            Section("Sources") {
-                if sources.isEmpty {
-                    Text("No files yet. Import PDFs from the + menu.")
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(sources) { source in
-                    NavigationLink {
-                        SourceDetailView(source: source)
-                    } label: {
-                        SourceRow(source: source)
+            if !sources.isEmpty {
+                Section("Sources") {
+                    ForEach(sources) { source in
+                        NavigationLink {
+                            SourceDetailView(source: source)
+                        } label: {
+                            SourceRow(source: source)
+                        }
                     }
                 }
             }
 
-            Section("Explanations") {
-                if explanations.isEmpty {
-                    Text("No explanations yet")
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(explanations) { explanation in
-                    NavigationLink {
-                        ExplanationView(explanation: explanation)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(explanation.title.isEmpty ? "Untitled" : explanation.title)
-                            Text(explanation.createdAt, format: .dateTime.day().month().year())
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+            if !needsSetup {
+                Section("Explanations") {
+                    if explanations.isEmpty {
+                        Text("No explanations yet")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(explanations) { explanation in
+                        NavigationLink {
+                            ExplanationView(explanation: explanation)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(explanation.title.isEmpty ? "Untitled" : explanation.title)
+                                Text(explanation.createdAt, format: .dateTime.day().month().year())
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -155,7 +162,10 @@ struct ProjectDetailView: View {
                 Button("Edit Schedule", systemImage: "calendar") { editingSchedule = true }
             }
         }
-        .onAppear { hasAPIKey = KeychainStore.read() != nil }
+        .onAppear {
+            hasAPIKey = KeychainStore.read() != nil
+            if opensSchedule && project.lectures.isEmpty { editingSchedule = true }
+        }
         // Explaining costs API credit, so a run of several lectures asks first.
         .confirmationDialog("Explain \(readyLectures.count) lecture\(readyLectures.count == 1 ? "" : "s") with Claude?",
                             isPresented: $confirmingExplainAll, titleVisibility: .visible) {
@@ -178,16 +188,16 @@ struct ProjectDetailView: View {
             switch result {
             case .success(let urls):
                 let outcome = SourceImporter.importFiles(urls, into: project)
-                importMessage = outcome.summary
+                importOutcome = (outcome.title, outcome.summary)
             case .failure(let error):
-                importMessage = error.localizedDescription
+                importOutcome = ("Import Failed", error.localizedDescription)
             }
         }
-        .alert("Import", isPresented: Binding(get: { importMessage != nil },
-                                              set: { if !$0 { importMessage = nil } })) {
+        .alert(importOutcome?.title ?? "", isPresented: Binding(get: { importOutcome != nil },
+                                                                set: { if !$0 { importOutcome = nil } })) {
             Button("OK") {}
         } message: {
-            Text(importMessage ?? "")
+            Text(importOutcome?.message ?? "")
         }
     }
 
@@ -220,7 +230,41 @@ struct ProjectDetailView: View {
                 Label("Stopped at Lecture \(failure.lecture.number): \(failure.message)",
                       systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.red)
+                Button(failure.remaining.count == 1 ? "Try Again" : "Try Again (\(failure.remaining.count) lectures)",
+                       systemImage: "arrow.clockwise") {
+                    explainer.retry(context: context)
+                }
+                Button("Dismiss") { explainer.dismissFailure() }
             }
+        }
+    }
+
+    /// The three steps from a new project to its first explanation, each ticked off
+    /// once done and each opening the place where it is done.
+    @ViewBuilder private var gettingStarted: some View {
+        Section {
+            NavigationLink {
+                InstructionsEditorView(project: project)
+            } label: {
+                SetupStep(done: !project.instructions.isEmpty, title: "Write instructions for Claude",
+                          detail: "The level, language and format the explanations should have.")
+            }
+            Button {
+                editingSchedule = true
+            } label: {
+                SetupStep(done: !project.lectures.isEmpty, title: "Set up the lecture schedule",
+                          detail: "The weekly lecture times and the semester's dates.")
+            }
+            Button {
+                importingFiles = true
+            } label: {
+                SetupStep(done: !project.sources.isEmpty, title: "Import the PDFs",
+                          detail: "Slide decks named like QM4Eng_L05_….pdf go to the lecture with that number.")
+            }
+        } header: {
+            Text("Get Started")
+        } footer: {
+            Text("Then open a lecture and explain it with Claude.")
         }
     }
 
@@ -238,16 +282,48 @@ struct ProjectDetailView: View {
     }
 }
 
+/// One step of the Get Started checklist: a tick (or an empty circle), a title and a hint.
+private struct SetupStep: View {
+    let done: Bool
+    let title: String
+    let detail: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(done ? Color.green : Color.secondary)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .foregroundStyle(done ? Color.secondary : Color.primary)
+                Text(detail)
+                    .font(.caption)
+                    // Color.secondary, not .secondary: inside a Button the latter takes
+                    // the button's blue tint.
+                    .foregroundStyle(Color.secondary)
+            }
+        }
+        // VoiceOver hears the state as a value: "Import the PDFs, Done".
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(done ? "Done" : "Not done")
+    }
+}
+
 /// "Week 4 · 26 Oct – 1 Nov", with a "This week" tag on the current one.
 private struct WeekHeader: View {
     let week: Int
     let firstDate: Date
     let isCurrent: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let monday = mondayOfWeek(for: firstDate, in: calendar)
         let sunday = calendar.date(byAdding: .day, value: 6, to: monday)!
-        HStack {
+        // The tag goes under the dates at the largest text sizes, as in LectureRow.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading))
+            : AnyLayout(HStackLayout())
+        layout {
             Text("Week \(week) · \(monday.formatted(.dateTime.day().month(.abbreviated))) – \(sunday.formatted(.dateTime.day().month(.abbreviated)))")
             if isCurrent {
                 Text("This week")
@@ -260,9 +336,15 @@ private struct WeekHeader: View {
 
 private struct LectureRow: View {
     let lecture: Lecture
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack {
+        // At the largest (accessibility) text sizes the status goes below the date
+        // instead of beside it, where it would squeeze the title to a few letters a line.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout())
+        layout {
             VStack(alignment: .leading, spacing: 2) {
                 Text(lecture.title.isEmpty ? "Lecture \(lecture.number)" : "\(lecture.number). \(lecture.title)")
                 // .dateTime formats follow the user's locale: "Tue 27 Oct, 10:15" or "Tue, Oct 27, 10:15 AM".
@@ -270,7 +352,7 @@ private struct LectureRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
+            if !typeSize.isAccessibilitySize { Spacer() }
             status
                 .font(.caption)
         }
@@ -304,6 +386,7 @@ private struct StatusLabel: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: icon)
+                .accessibilityHidden(true)   // the text says it; VoiceOver would read the icon's name too
             Text(text)
         }
         .foregroundStyle(color)

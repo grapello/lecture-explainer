@@ -17,6 +17,9 @@ Build in small steps. Each step should run before moving on. Each numbered secti
 - **Retries, then stop.** A busy API (overloaded, rate limit, server error) is retried after 15 s, 45 s and 120 s, or after the API's `retry-after`. Any other error stops the run, since no credit or an invalid key would make every later lecture fail the same way.
 - **Re-explaining asks.** A lecture that already has an explanation asks "replace the old one or keep both?". Replacing deletes the old one only after the new one is saved.
 - **Name: Lexia.** Display name and loading screen; the Xcode project, target and Keychain service keep the old name, so nothing breaks and saved keys stay.
+- **One drawing for logo and icon.** `LexiaLogo` draws both; a script renders it into the icon PNGs, so the loading screen and the home screen can't drift apart.
+- **Try Again continues the stopped run.** It sends the failed lecture and the ones the run hadn't reached, not "all ready lectures", so retrying never spends credit on lectures you didn't ask for.
+- **Templates copy the pattern, not the semester.** Instructions and weekly times are copied; dates start today with the old semester's length and are confirmed in the schedule editor, which opens right away. Lectures, files and explanations stay with the old project.
 - **API details.** Messages API over URLSession (no Swift SDK exists), API version `2026-10-21`, default model `claude-opus-5-5` at effort `high`, streaming always on, and `fallbacks: "default"` so a declined request is retried on a suitable model server-side.
 
 ## Data model (SwiftData)
@@ -93,14 +96,15 @@ Use `@Relationship(deleteRule: .cascade)` so deleting a project removes its lect
 
 ## 7. Polish
 
-- [ ] Empty states and clear error messages
-- [ ] App icon (the loading screen is done, and its LexiaLogo view could be rendered into the icon)
-- [ ] Accessibility pass (Dynamic Type, VoiceOver labels)
-- [ ] Optional: project templates (duplicate a project's instructions and schedule for a new course)
+- [x] Empty states and clear error messages: a Get Started checklist for new projects; errors that say what to do (no credit, offline, empty clipboard, failed imports); Try Again on a stopped run
+- [x] App icon: LexiaLogo rendered by `scripts/render-app-icon.sh`, with Default, Dark and Tinted looks
+- [x] Accessibility pass: Dynamic Type layouts for the largest sizes, VoiceOver labels and values, announcements when lectures finish
+- [x] Project templates: "Start From" in New Project, "Use as Template" in a project's menu
+- [ ] Not verified yet: VoiceOver on a real device (the Simulator has no VoiceOver; labels were checked in code)
 
 ## Open questions
 
-- ~~Send the PDF directly to the API or extract text and images locally?~~ **Decided: extract text in the app** with PDFKit (`PDFReader`). Requests stay small and you can see exactly what Claude gets (a file's Text tab). Trade-off: equations drawn as images and scanned pages give little text.
+- ~~Send the PDF directly to the API or extract text and images locally?~~ **Decided: send the PDFs** (see "PDFs, not extracted text" above). Extracting text on the phone came first, but it lost scanned slides and equations drawn as images.
 - Should a project always be a lecture series, or can it be a single document? (If always lectures, the schedule can stay required.)
 - Is the optional EventKit export worth it, or is the in-app calendar enough?
 - ~~Minimum iOS version~~ **Decided by the Xcode project: iOS 27**, so `MultiDatePicker` (iOS 16) and the newer EventKit access APIs (iOS 17) are both available.

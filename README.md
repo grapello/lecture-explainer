@@ -15,7 +15,7 @@
 
 ## Status
 
-Roadmap steps 1–6 are done: data model, projects, schedule and week list, PDF import and reading, the Claude API client, and explaining lectures (API or Claude app) with rendered explanations. On top of that: PDFs sent to Claude directly, typeset formulas, retries, replace-or-keep, and the new name with a loading screen. Step 7 is polish: empty states, app icon, accessibility. See [docs/ROADMAP.md](docs/ROADMAP.md).
+Roadmap steps 1–7 are done: data model, projects, schedule and week list, PDF import and reading, the Claude API client, explaining lectures (API or Claude app) with rendered explanations, and polish (app icon, a Get Started checklist, clearer errors with Try Again, accessibility, project templates). On top of that: PDFs sent to Claude directly, typeset formulas, retries, replace-or-keep, and the new name with a loading screen. Left: the optional calendar export and reminders, and checks on a real iPhone. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Requirements
 
@@ -30,7 +30,7 @@ Roadmap steps 1–6 are done: data model, projects, schedule and week list, PDF 
 2. Pick an iPhone simulator and press Run (⌘R).
 3. **Try it with sample data:** Product > Scheme > Edit Scheme > Run > Arguments, add `--sample-data`. The app then starts with an in-memory example course (12 lectures, some decks and explanations, real little PDFs). Nothing is saved; remove the argument to use your real data. Only works in Debug builds.
 4. Run the tests with ⌘U (no API key or network needed).
-5. For the API: Settings (gear icon) > paste your API key > Save > Send Test Request. The account needs API credit (console.anthropic.com > Billing); without it you get "Billing problem … credit balance is too low".
+5. For the API: Settings (gear icon) > paste your API key > Save > Send Test Request. The account needs API credit (console.anthropic.com > Billing); without it you get "Your Anthropic account has no API credit left".
 
 ### Getting PDFs into the Simulator
 
@@ -57,20 +57,24 @@ Lecture-Explainer/
     ClaudeClient.swift     Messages API request, SSE stream parsing, errors
     PromptBuilder.swift    A lecture's PDFs + instructions → the prompt
     Explainer.swift        Runs lectures through the API, retries, saves the answers
+    ProjectTemplate.swift  A new project from an old one's instructions and lecture times
   Views/
     ProjectListView        Projects: create, rename, delete; Settings link
-    NewProjectView         Sheet: name + instructions
-    ProjectDetailView      Instructions, schedule, weeks, sources, explanations
+    NewProjectView         Sheet: name + instructions, optionally from a template
+    ProjectDetailView      Get Started checklist or instructions + schedule; weeks, sources, explanations
     InstructionsEditorView Full-screen instructions editor
     ScheduleEditorView     Weekly slots, semester, skipped days, live preview
     LectureDetailView      One lecture, its Explain section (+ AddLectureView, ExplanationView)
     MathMarkdownView       Markdown + LaTeX → typeset page (web view with KaTeX)
-    SplashView             The Lexia loading screen and logo
+    SplashView             The Lexia loading screen
+    LexiaLogo              The logo, drawn in code; also rendered into the app icon
     SourceDetailView       One file: kind, lecture, page thumbnails, text
     SettingsView           API key, model, effort, test request
   Resources/KaTeX/       Bundled KaTeX 0.16.11, marked 12.0.2, fonts, licences,
                          lexia.html (the page) and lexia-render.js (Markdown + maths → HTML)
+  Assets.xcassets/AppIcon.appiconset/  The app icon (default, dark, tinted), from LexiaLogo
 Lecture-ExplainerTests/   Swift Testing unit tests (one file per area)
+scripts/render-app-icon.sh  Renders LexiaLogo into the app icon PNGs
 docs/ROADMAP.md
 ```
 
@@ -132,7 +136,9 @@ There is no official Anthropic SDK for Swift, so `ClaudeClient` calls the Messag
 - It is `@Observable`, so views reading `liveText` redraw as each piece arrives. The lecture screen renders the partial answer live; the project screen shows "Lecture 5 · 1 of 3 · writing".
 - Lectures run one after another. Each finished answer is saved immediately as an `Explanation` titled "Lecture n".
 - **Retries:** when the API is overloaded, rate-limited or has a server error, the lecture is tried again after 15 s, 45 s and 120 s, or after the wait the API names in `retry-after`. The screens show "API busy, trying again in 20 s". A broken-off answer starts over, because a stream can't be resumed.
-- Any other error, or a busy API after the last retry, stops the run and is shown on the lecture and project screens. The usual causes (no credit, bad key) would fail every following lecture too.
+- A connection that drops in the middle of an answer is retried the same way. Being offline is not: it rarely fixes itself within two minutes.
+- Any other error, or a busy API after the last retry, stops the run and is shown on the lecture and project screens. The usual causes (no credit, bad key) would fail every following lecture too. The messages say what to do: no credit points to console.anthropic.com and to Send to Claude App as the alternative; a rejected key points to Settings.
+- **Try Again** continues a stopped run from the lecture that failed, with the lectures it hadn't reached yet. It doesn't start "Explain All Ready" over, so it never sends a different set of lectures than the one you started.
 - **Replace or keep both:** "Explain with Claude" or "Paste Explanation" on a lecture that already has an explanation asks first. "Replace the Old One" deletes the old explanation only after the new one is saved, so a failed request loses nothing. "Keep Both" adds the new one, and older ones can be swiped away later.
 - Stop cancels the Task. A half-written answer is not saved, but finished ones are kept.
 - "Explain All Ready" asks for confirmation first, because it spends API credit.
@@ -147,9 +153,25 @@ There is no official Anthropic SDK for Swift, so `ClaudeClient` calls the Messag
 - While an answer streams in, the page re-renders at most every 0.3 s, always with the latest text, so typing doesn't stutter. Inside a list, the page reports its height to the app, so the row grows with the text.
 - The KaTeX CSS was changed in one place: its font paths point to the files next to it, because Xcode copies resources flat into the app.
 
-### Loading screen and name
+### Loading screen, name and icon
 
-The app is called **Lexia** (`INFOPLIST_KEY_CFBundleDisplayName`). At launch iOS shows its static launch screen, a plain background in the system colour. `SplashView` then starts on the same background and animates in the logo (`LexiaLogo`, drawn in code: an open book with a spark on a blue-violet tile), the name and "Lectures, explained". It fades out after about 1.3 s. With Reduce Motion on, it fades instead of growing. The Keychain entry keeps its old service name "Lecture-Explainer", so keys saved before the rename are still found.
+The app is called **Lexia** (`INFOPLIST_KEY_CFBundleDisplayName`). At launch iOS shows its static launch screen, a plain background in the system colour. `SplashView` then starts on the same background and animates in the logo, the name and "Lectures, explained". It fades out after about 1.3 s. With Reduce Motion on, it fades instead of growing. The Keychain entry keeps its old service name "Lecture-Explainer", so keys saved before the rename are still found.
+
+**The logo and the app icon are one view.** `LexiaLogo` draws an open book (SF Symbol `book.pages.fill`) with a spark on a blue-violet gradient. It has two styles: a rounded tile with a shadow for the loading screen, and a full square for the icon (iOS rounds icon corners itself). The icon comes in the three looks iOS offers on the home screen: Default (the gradient), Dark (the gradient moves into the book, on near-black) and Tinted (white on black, which iOS colours with the user's tint).
+
+`scripts/render-app-icon.sh` compiles `LexiaLogo.swift` together with a small renderer for the Mac and writes the three 1024 × 1024 PNGs into `AppIcon.appiconset`. They have no transparency, which the App Store requires of icons. So `LexiaLogo.swift` uses SwiftUI only (no UIKit). After changing the logo, run the script again and commit the PNGs.
+
+### Getting started, errors and templates
+
+- **Get Started:** a new project shows a three-step checklist (instructions, schedule, PDFs), each step ticking off when done and opening the place where it is done. The Instructions and Schedule sections replace it once the project has lectures and files.
+- **Errors say what to do next:** import alerts are titled "Imported", "Some Files Failed" or "Import Failed"; "Paste Explanation" with an empty clipboard explains how to copy Claude's answer; a stopped run offers Try Again and Dismiss.
+- **Templates:** New Project can "Start From" an existing project, or a project's long-press menu has "Use as Template". `ProjectTemplate` copies the instructions and the weekly lecture times and gives them a semester of the same length starting today; lectures, files and explanations stay with the old project. The new project opens with the schedule editor, to set the real dates.
+
+### Accessibility
+
+- Text follows Dynamic Type everywhere, including the explanation page (`-apple-system-body`) and the loading screen (`@ScaledMetric`). At the accessibility text sizes, lecture rows and week headers stack their parts vertically instead of squeezing them into one line.
+- VoiceOver: status icons next to text are hidden (the text says it), checklist steps read as "Import the PDFs, Not done", page thumbnails as "Page 3". KaTeX writes MathML next to its HTML, so VoiceOver can read formulas.
+- VoiceOver announces each finished lecture and a stopped run (`AccessibilityNotification.Announcement`), since a run of several lectures takes minutes and the user may be on another screen.
 
 ### API key handling
 
@@ -168,7 +190,10 @@ The app never contains a key. You paste your own key into Settings, and it is st
 - the Keychain
 - the Claude client: request building, SSE parsing, and error mapping against a fake server (`MockURLProtocol`), so no API key or network is used
 - the prompt (exact text, attaching stored PDFs, flagging missing ones, unencrypted copies of copy-protected PDFs) and the request's document blocks with the cache marker
-- the Explainer with a fake answer stream: saving, stopping at the first error, retrying a busy API (and giving up), replace vs keep both, lectures without files
+- the Explainer with a fake answer stream: saving, stopping at the first error, retrying a busy API (and giving up), Try Again from the failed lecture, replace vs keep both, lectures without files
+- network errors (offline vs dropped connection) and the no-credit message
+- import alerts when a file can't be copied
+- project templates: what is copied, the new semester's dates, a template without a schedule
 - the formula renderer: the same `lexia-render.js` run in JavaScriptCore (no web view), checking typeset maths, Markdown around it, `$` in code and prices, and raw HTML shown as text
 
 ## Build caches in the project folder

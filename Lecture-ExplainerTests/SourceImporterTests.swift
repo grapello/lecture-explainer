@@ -53,6 +53,16 @@ struct SourceImporterTests {
         #expect(outcome.failed.isEmpty)
     }
 
+    @Test func aFileThatCantBeCopiedIsReportedAsFailed() throws {
+        let missing = inbox.appending(path: "Gone.pdf")
+        let outcome = SourceImporter.importFiles([missing], into: project, store: store)
+        #expect(outcome.title == "Import Failed")
+        #expect(outcome.summary.hasPrefix("Could not import Gone.pdf"))   // no "Imported 0 files."
+
+        let mixed = SourceImporter.importFiles([try pdf("QM4Eng_L01_Intro.pdf"), missing], into: project, store: store)
+        #expect(mixed.title == "Some Files Failed")
+    }
+
     @Test func importingTheSameNameAgainUpdatesInsteadOfDuplicating() throws {
         let url = try pdf("QM4Eng_L01_Intro.pdf")
         SourceImporter.importFiles([url], into: project, store: store)

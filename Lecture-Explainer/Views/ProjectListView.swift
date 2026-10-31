@@ -17,7 +17,13 @@ struct ProjectListView: View {
     // The navigation path, held here so code can push a screen
     // (opening a project right after creating it) or pop one (after deleting it).
     @State private var path: [Project] = []
-    @State private var showingNewProject = false
+    // The New Project sheet, and the project to start it from ("Use as Template").
+    // One value rather than a Bool plus a template, so the sheet is always built
+    // with the template it was opened for.
+    @State private var newProject: NewProjectRequest?
+    // A project just made from a template: it opens with the schedule editor,
+    // so the copied lecture times get this semester's dates.
+    @State private var scheduleToOpen: Project?
     // The project the rename alert / delete dialog is about. nil means "not showing".
     @State private var projectToRename: Project?
     @State private var renameText = ""
@@ -41,6 +47,9 @@ struct ProjectListView: View {
                     }
                     .contextMenu {
                         Button("Rename", systemImage: "pencil") { startRenaming(project) }
+                        Button("Use as Template", systemImage: "doc.on.doc") {
+                            newProject = NewProjectRequest(template: project)
+                        }
                         Button("Delete", systemImage: "trash", role: .destructive) { projectToDelete = project }
                     }
                 }
@@ -53,8 +62,10 @@ struct ProjectListView: View {
             }
             .navigationTitle("Projects")
             .navigationDestination(for: Project.self) { project in
-                ProjectDetailView(project: project)
+                ProjectDetailView(project: project, opensSchedule: project == scheduleToOpen)
             }
+            // Back on the list: the schedule editor opened once, and isn't forced again.
+            .onChange(of: path) { if path.isEmpty { scheduleToOpen = nil } }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
@@ -64,11 +75,14 @@ struct ProjectListView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("New Project", systemImage: "plus") { showingNewProject = true }
+                    Button("New Project", systemImage: "plus") { newProject = NewProjectRequest() }
                 }
             }
-            .sheet(isPresented: $showingNewProject) {
-                NewProjectView { project in path = [project] }
+            .sheet(item: $newProject) { request in
+                NewProjectView(template: request.template) { project, fromTemplate in
+                    if fromTemplate { scheduleToOpen = project }
+                    path = [project]
+                }
             }
             .alert("Rename Project", isPresented: isShowing($projectToRename)) {
                 TextField("Name", text: $renameText)
@@ -110,6 +124,12 @@ struct ProjectListView: View {
         Binding(get: { item.wrappedValue != nil },
                 set: { if !$0 { item.wrappedValue = nil } })
     }
+}
+
+/// What the New Project sheet was opened for: a blank project, or one from a template.
+private struct NewProjectRequest: Identifiable {
+    let id = UUID()
+    var template: Project?
 }
 
 private struct ProjectRow: View {

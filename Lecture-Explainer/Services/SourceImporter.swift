@@ -20,9 +20,18 @@ enum SourceImporter {
             imported.filter { $0.lecture == nil && $0.kind != .reference }
         }
 
+        /// The alert's title: whether anything went wrong.
+        var title: String {
+            if imported.isEmpty { return "Import Failed" }
+            return failed.isEmpty ? "Imported" : "Some Files Failed"
+        }
+
         /// A short message for the alert after an import.
         var summary: String {
-            var lines = ["Imported \(imported.count) file\(imported.count == 1 ? "" : "s")."]
+            var lines: [String] = []
+            if !imported.isEmpty {
+                lines.append("Imported \(imported.count) file\(imported.count == 1 ? "" : "s").")
+            }
             if !unassigned.isEmpty {
                 lines.append("Not linked to a lecture: \(unassigned.map(\.fileName).joined(separator: ", ")). Open a file to choose its lecture.")
             }

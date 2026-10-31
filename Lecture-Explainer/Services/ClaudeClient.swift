@@ -83,22 +83,29 @@ enum ClaudeError: LocalizedError, Equatable {
     case server(String)
     case badRequest(String)
     case refused
+    case offline
+    case network(String)
     case unexpected(String)
 
     var errorDescription: String? {
         switch self {
-        case .missingAPIKey: "No API key yet. Add one in Settings."
-        case .invalidAPIKey: "The API key was rejected. Check it in Settings."
+        case .missingAPIKey: "No API key yet. Add one in Settings, or use Send to Claude App instead."
+        case .invalidAPIKey: "The API key was rejected. It may have been deleted or mistyped: save it again in Settings."
+        // The API's own text ("Your credit balance is too low…") doesn't say where to go.
+        case .billing(let message) where message.localizedCaseInsensitiveContains("credit balance"):
+            "Your Anthropic account has no API credit left. Add credit at console.anthropic.com under Billing, or use Send to Claude App, which uses your Claude plan instead."
         case .billing(let message): "Billing problem on your Anthropic account: \(message)"
         case .permissionDenied(let message): "This key isn't allowed to do that: \(message)"
         case .notFound(let message): "Not found (is the model available to your account?): \(message)"
-        case .requestTooLarge: "The request is too large. Try a shorter document."
+        case .requestTooLarge: "The lecture's files are too large for one request. Remove or split a large PDF and try again."
         case .rateLimited(let seconds):
             "Too many requests right now." + (seconds.map { " Try again in \($0) s." } ?? " Try again shortly.")
         case .overloaded: "Claude is overloaded at the moment. Try again in a minute."
         case .server(let message): "Anthropic server error: \(message)"
         case .badRequest(let message): "The request was invalid: \(message)"
         case .refused: "Claude declined to answer this request."
+        case .offline: "No internet connection. Connect and try again."
+        case .network(let message): "The connection to Anthropic broke off: \(message)"
         case .unexpected(let message): message
         }
     }
@@ -106,8 +113,18 @@ enum ClaudeError: LocalizedError, Equatable {
     /// Whether trying the same request again later can help.
     var isRetryable: Bool {
         switch self {
-        case .rateLimited, .overloaded, .server: true
+        // A dropped connection is retried too; being offline is not, since it
+        // rarely fixes itself within the retry delays.
+        case .rateLimited, .overloaded, .server, .network: true
         default: false
+        }
+    }
+
+    /// Maps a network failure (no API answer at all) to a case.
+    init(_ error: URLError) {
+        switch error.code {
+        case .notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff: self = .offline
+        default: self = .network(error.localizedDescription)
         }
     }
 
@@ -317,6 +334,8 @@ struct ClaudeClient {
                     continuation.finish()
                 } catch let error as URLError where error.code == .cancelled {
                     continuation.finish(throwing: CancellationError())
+                } catch let error as URLError {
+                    continuation.finish(throwing: ClaudeError(error))
                 } catch {
                     continuation.finish(throwing: error)
                 }

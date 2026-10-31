@@ -141,6 +141,10 @@ private struct PageThumbnail: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
+        // One VoiceOver stop per page, read as "Page 3" rather than just "3".
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Page \(index + 1)")
+        .accessibilityAddTraits(.isImage)
         .task { image = reader.thumbnail(ofPage: index, width: 280) }
     }
 }

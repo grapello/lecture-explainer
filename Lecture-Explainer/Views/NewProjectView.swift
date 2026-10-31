@@ -6,12 +6,17 @@
 import SwiftUI
 import SwiftData
 
-/// The sheet for creating a project: a name and the instructions Claude gets.
+/// The sheet for creating a project: a name and the instructions Claude gets,
+/// optionally started from an existing project (see ProjectTemplate).
 struct NewProjectView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    // Called with the new project, so the list can open it straight away.
-    var onCreate: (Project) -> Void = { _ in }
+    @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
+    // Called with the new project, so the list can open it straight away, and
+    // whether it was made from a template (its schedule then needs new dates).
+    var onCreate: (Project, _ fromTemplate: Bool) -> Void = { _, _ in }
+
+    @State private var template: Project?
 
     // Typed text lives in @State until Create is tapped, so Cancel leaves no
     // half-made project behind.
@@ -19,6 +24,12 @@ struct NewProjectView: View {
     @State private var instructions = ""
     // Lets code move the keyboard focus: the name field is focused when the sheet opens.
     @FocusState private var nameFocused: Bool
+
+    init(template: Project? = nil, onCreate: @escaping (Project, _ fromTemplate: Bool) -> Void = { _, _ in }) {
+        self.onCreate = onCreate
+        _template = State(initialValue: template)
+        _instructions = State(initialValue: template?.instructions ?? "")
+    }
 
     private var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -28,6 +39,27 @@ struct NewProjectView: View {
         // A sheet gets its own NavigationStack so it can have a title bar with buttons.
         NavigationStack {
             Form {
+                if !projects.isEmpty {
+                    Section {
+                        Picker("Start From", selection: $template) {
+                            Text("Blank Project").tag(Project?.none)
+                            ForEach(projects) { project in
+                                Text(project.name).tag(Optional(project))
+                            }
+                        }
+                        // Picking a template fills in its instructions, unless the user
+                        // has already typed their own.
+                        .onChange(of: template) { old, new in
+                            if instructions.isEmpty || instructions == old?.instructions {
+                                instructions = new?.instructions ?? ""
+                            }
+                        }
+                    } footer: {
+                        if template != nil {
+                            Text("Copies the instructions and the weekly lecture times. You pick the new semester's dates next. Files and explanations are not copied.")
+                        }
+                    }
+                }
                 Section("Name") {
                     TextField("e.g. Quantum Mechanics for Engineers", text: $name)
                         .focused($nameFocused)
@@ -57,10 +89,15 @@ struct NewProjectView: View {
     }
 
     private func create() {
-        let project = Project(name: trimmedName, instructions: instructions)
+        let project = if let template {
+            ProjectTemplate.makeProject(named: trimmedName, instructions: instructions, from: template,
+                                        startingOn: .now, calendar: calendar)
+        } else {
+            Project(name: trimmedName, instructions: instructions)
+        }
         context.insert(project)
         dismiss()
-        onCreate(project)
+        onCreate(project, !project.scheduleRules.isEmpty)
     }
 }
 

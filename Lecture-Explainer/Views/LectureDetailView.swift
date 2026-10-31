@@ -21,6 +21,7 @@ struct LectureDetailView: View {
     @State private var prompt: LecturePrompt?
     @State private var copiedPrompt = false
     @State private var sharing = false
+    @State private var clipboardEmpty = false
 
     /// The two ways a new explanation arrives. Kept while the "replace or keep
     /// both?" question is open, so the answer knows what to continue with.
@@ -144,9 +145,10 @@ struct LectureDetailView: View {
                         Text(explainer.liveText.isEmpty ? "Claude is reading and thinking…" : "Claude is writing…")
                             .foregroundStyle(.secondary)
                     }
-                    Spacer()
-                    Button("Stop", role: .destructive) { explainer.stop() }
                 }
+                // Its own row rather than at the end of the line above, which leaves no
+                // room for the status text at large text sizes.
+                Button("Stop", systemImage: "stop.circle", role: .destructive) { explainer.stop() }
                 if !explainer.liveText.isEmpty {
                     MathMarkdownView(markdown: explainer.liveText, scrolls: false)
                         // Edge to edge inside the row; the page has its own margins.
@@ -178,8 +180,10 @@ struct LectureDetailView: View {
             }
 
             if let failure = explainer.failure, failure.lecture == lecture {
-                Text(failure.message)
+                Label(failure.message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.red)
+                Button("Try Again", systemImage: "arrow.clockwise") { explainer.retry(context: context) }
+                    .disabled(explainer.isRunning)
             }
             if let prompt, !prompt.unreadable.isEmpty {
                 Text("Can't send \(prompt.unreadable.joined(separator: ", ")): the file is missing or needs a password.")
@@ -210,6 +214,11 @@ struct LectureDetailView: View {
                  ? "Replace deletes the old explanation once the new one has been saved."
                  : "Replace deletes the old explanation and saves the pasted one.")
         }
+        .alert("Nothing to Paste", isPresented: $clipboardEmpty) {
+            Button("OK") {}
+        } message: {
+            Text("The clipboard has no text. In the Claude app, tap Copy under Claude's answer, then come back and tap Paste Explanation.")
+        }
         .task(id: copiedPrompt) {
             // Show "Prompt Copied" for two seconds, then go back to "Copy Prompt".
             guard copiedPrompt else { return }
@@ -220,7 +229,10 @@ struct LectureDetailView: View {
 
     /// Asks "replace or keep both?" first if the lecture is already explained.
     private func start(_ kind: NewExplanation) {
-        if lecture.explanations.isEmpty {
+        // Nothing to paste: say so now, rather than after the replace question.
+        if kind == .paste && (UIPasteboard.general.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            clipboardEmpty = true
+        } else if lecture.explanations.isEmpty {
             finish(kind, replacing: false)
         } else {
             askingToReplace = kind

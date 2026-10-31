@@ -38,6 +38,21 @@ struct ClaudeStreamParsingTests {
         #expect(ClaudeError.overloaded.isRetryable)
         #expect(!ClaudeError.invalidAPIKey.isRetryable)
     }
+
+    @Test func mapsNetworkFailures() {
+        #expect(ClaudeError(URLError(.notConnectedToInternet)) == .offline)
+        #expect(!ClaudeError.offline.isRetryable)
+        // A connection that drops mid-answer is worth another try.
+        let dropped = ClaudeError(URLError(.networkConnectionLost))
+        #expect(dropped == .network(URLError(.networkConnectionLost).localizedDescription))
+        #expect(dropped.isRetryable)
+    }
+
+    @Test func noCreditSaysWhereToAddIt() {
+        let message = ClaudeError.billing("Your credit balance is too low to access the Anthropic API.").localizedDescription
+        #expect(message.contains("console.anthropic.com"))
+        #expect(message.contains("Send to Claude App"))
+    }
 }
 
 struct ClaudeRequestTests {

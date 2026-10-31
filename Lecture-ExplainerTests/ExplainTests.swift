@@ -162,6 +162,29 @@ struct ExplainerTests {
         #expect(!explainer.isRunning)
     }
 
+    @Test func tryAgainContinuesFromTheLectureThatFailed() async throws {
+        try storePDFs()
+        defer { cleanUp() }
+        let explainer = Explainer()
+        var offline = true
+        var sentLectures: [String] = []
+        explainer.send = { request in
+            sentLectures.append(request.documents[0].title)
+            if offline { throw ClaudeError.offline }
+            return Self.answer(["Done"])
+        }
+        explainer.explain(lectures, context: container.mainContext)
+        await explainer.waitUntilFinished()
+        #expect(explainer.failure?.remaining == lectures)   // stopped at the first one
+
+        offline = false
+        explainer.retry(context: container.mainContext)
+        await explainer.waitUntilFinished()
+        #expect(sentLectures == ["L01.pdf", "L01.pdf", "L02.pdf"])
+        #expect(lectures.allSatisfy { $0.explanations.count == 1 })
+        #expect(explainer.failure == nil)
+    }
+
     @Test func retriesWhenTheAPIIsBusy() async throws {
         try storePDFs()
         defer { cleanUp() }

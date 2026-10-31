@@ -24,8 +24,11 @@ struct InstructionsEditorView: View {
                         .padding(.horizontal, 21)   // lines up with the editor's own text inset
                         .padding(.top, 8)
                         .allowsHitTesting(false)    // taps go through to the editor underneath
+                        .accessibilityHidden(true)  // VoiceOver gets it as the hint below instead
                 }
             }
+            .accessibilityLabel("Instructions for Claude")
+            .accessibilityHint("How explanations for this course should be written: level, language, format.")
             .navigationTitle("Instructions")
             .navigationBarTitleDisplayMode(.inline)
     }
