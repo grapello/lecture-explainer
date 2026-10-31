@@ -19,7 +19,7 @@ Roadmap steps 1–7 are done: data model, projects, schedule and week list, PDF 
 
 ## Requirements
 
-- A Mac with Xcode, and the iOS 27 SDK (the project's deployment target)
+- A Mac with Xcode and the iOS 27 SDK; the app itself runs on iOS 26 or later (the deployment target)
 - An iPhone, or the Xcode iOS Simulator
 - An Apple ID (free) to run on your own device. Apps signed this way expire after 7 days and need rebuilding.
 - For explaining lectures, either an Anthropic API key (pay-per-use API credit, separate from a Claude subscription) or the Claude app with a Claude plan

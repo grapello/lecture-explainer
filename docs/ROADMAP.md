@@ -107,4 +107,4 @@ Use `@Relationship(deleteRule: .cascade)` so deleting a project removes its lect
 - ~~Send the PDF directly to the API or extract text and images locally?~~ **Decided: send the PDFs** (see "PDFs, not extracted text" above). Extracting text on the phone came first, but it lost scanned slides and equations drawn as images.
 - Should a project always be a lecture series, or can it be a single document? (If always lectures, the schedule can stay required.)
 - Is the optional EventKit export worth it, or is the in-app calendar enough?
-- ~~Minimum iOS version~~ **Decided by the Xcode project: iOS 27**, so `MultiDatePicker` (iOS 16) and the newer EventKit access APIs (iOS 17) are both available.
+- ~~Minimum iOS version~~ **Decided: iOS 26** (lowered from Xcode's default of 27, so the app installs on phones that don't have 27 yet; nothing in the app needs 27). So `MultiDatePicker` (iOS 16) and the newer EventKit access APIs (iOS 17) are both available.
