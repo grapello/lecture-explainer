@@ -1,6 +1,6 @@
 //
 //  SchedulePlannerTests.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import Testing

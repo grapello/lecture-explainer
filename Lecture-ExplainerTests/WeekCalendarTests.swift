@@ -1,6 +1,6 @@
 //
 //  WeekCalendarTests.swift
-//  Lecture-Explainer
+//  Lexia
 //
 //  Created by Gabriel Rapello on 29.10.26.
 //

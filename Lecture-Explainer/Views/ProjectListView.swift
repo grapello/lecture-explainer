@@ -1,6 +1,6 @@
 //
 //  ProjectListView.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import SwiftUI

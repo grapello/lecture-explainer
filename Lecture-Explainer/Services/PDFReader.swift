@@ -1,6 +1,6 @@
 //
 //  PDFReader.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import Foundation
@@ -8,13 +8,11 @@ import PDFKit
 import UIKit
 
 /// Reads a PDF on the device with Apple's PDFKit: page count, the text on each
-/// page, and page thumbnails.
+/// page, and page thumbnails, for the file screen (its Pages and Text tabs).
 ///
-/// Decision (roadmap open question): the app extracts text here instead of sending
-/// the PDF itself to the API. That keeps requests small and cheap and lets you see
-/// exactly what Claude will receive (the Text tab of a file). The trade-off: PDFKit
-/// only finds real text. Equations drawn as images, diagrams and scanned pages give
-/// little or no text, so check a deck's Text tab if an explanation seems to miss things.
+/// Claude doesn't get this text: the PDF itself is sent (see PromptBuilder), so
+/// scanned slides and equations drawn as images reach Claude too. PDFKit only finds
+/// real text, which is why the Text tab can show less than Claude sees.
 struct PDFReader {
     private let document: PDFDocument
 
@@ -32,8 +30,7 @@ struct PDFReader {
         (document.page(at: index)?.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Every page's text, each under a "[Page n]" marker so Claude (and you) can
-    /// refer to slides by number. This is what the prompt will contain in step 6.
+    /// Every page's text, each under a "[Page n]" marker.
     func fullText() -> String {
         (0..<pageCount).map { "[Page \($0 + 1)]\n\(text(ofPage: $0))" }
             .joined(separator: "\n\n")

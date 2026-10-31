@@ -1,4 +1,4 @@
-# Roadmap
+# Roadmap (Lexia)
 
 Build in small steps. Each step should run before moving on. Each numbered section can become a GitHub milestone, and each checkbox an issue.
 
@@ -12,8 +12,11 @@ Build in small steps. Each step should run before moving on. Each numbered secti
 - **Re-applying a schedule is careful.** Saving the schedule adds missing lectures and removes untouched ones on days no longer scheduled, but never touches lectures moved or added by hand, or that have files or explanations. Lectures are then renumbered (`SchedulePlanner`).
 - **Deck numbers win.** A lecture with a deck keeps the number in the deck's file name; the others are numbered by date around it without reusing a deck's number. After a holiday the list shows a gap (no Lecture 6) rather than relabelling the L07 deck as Lecture 6.
 - **Two ways to explain.** Third-party apps can't use a Claude.ai plan (Free/Pro/Max) directly; only the API can be called from the app, billed separately. So the app offers both: the API for automatic, batch explanations, and a manual round trip through the Claude app for users who only have a plan. Both use the same prompt.
-- **Maths as Unicode.** The prompt asks Claude for ψ, ħ, ∂ψ/∂t rather than LaTeX, because SwiftUI can't render LaTeX without a web view or a third-party library.
-- **A run stops at the first error.** No credit, an invalid key or a rate limit would make every later lecture fail the same way. Retrying overloaded/rate-limited requests automatically is a possible later improvement.
+- **PDFs, not extracted text.** Claude gets each PDF itself and reads every page as text and image, so scanned slides and equations drawn as images come through. This replaced on-device text extraction, which missed those. It costs more per lecture; the reference sheet is prompt-cached.
+- **Typeset formulas with bundled KaTeX.** Claude writes LaTeX; explanations are rendered in a web view with KaTeX and marked, bundled with the app so it works offline. Chosen over Unicode maths (no fractions or matrices) and a native Swift renderer (lower quality).
+- **Retries, then stop.** A busy API (overloaded, rate limit, server error) is retried after 15 s, 45 s and 120 s, or after the API's `retry-after`. Any other error stops the run, since no credit or an invalid key would make every later lecture fail the same way.
+- **Re-explaining asks.** A lecture that already has an explanation asks "replace the old one or keep both?". Replacing deletes the old one only after the new one is saved.
+- **Name: Lexia.** Display name and loading screen; the Xcode project, target and Keychain service keep the old name, so nothing breaks and saved keys stay.
 - **API details.** Messages API over URLSession (no Swift SDK exists), API version `2026-10-21`, default model `claude-opus-5-5` at effort `high`, streaming always on, and `fallbacks: "default"` so a declined request is retried on a suitable model server-side.
 
 ## Data model (SwiftData)
@@ -80,10 +83,18 @@ Use `@Relationship(deleteRule: .cascade)` so deleting a project removes its lect
 - [x] Copy text button
 - [ ] Not verified yet: a full real explanation through the API (the account had no credit), the Claude app in the share sheet (not installable in the Simulator), and pasting (the Simulator's clipboard stayed empty)
 
+## 6b. Improvements after step 6
+
+- [x] Send the PDFs to Claude instead of extracted text (scanned slides, equations as images)
+- [x] Typeset formulas: LaTeX rendered with bundled KaTeX
+- [x] Retry when the API is busy
+- [x] Re-explaining asks: replace the old explanation or keep both
+- [x] Rename to Lexia, with a loading screen
+
 ## 7. Polish
 
 - [ ] Empty states and clear error messages
-- [ ] App icon and launch screen
+- [ ] App icon (the loading screen is done, and its LexiaLogo view could be rendered into the icon)
 - [ ] Accessibility pass (Dynamic Type, VoiceOver labels)
 - [ ] Optional: project templates (duplicate a project's instructions and schedule for a new course)
 

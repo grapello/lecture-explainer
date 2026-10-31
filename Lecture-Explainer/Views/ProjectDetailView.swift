@@ -1,6 +1,6 @@
 //
 //  ProjectDetailView.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import SwiftUI
@@ -203,9 +203,15 @@ struct ProjectDetailView: View {
                         ProgressView()
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Lecture \(lecture.number)")
-                            Text("\(explainer.finished + 1) of \(explainer.total) · \(explainer.liveText.isEmpty ? "thinking" : "writing")")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            Group {
+                                if let retryAt = explainer.retryAt {
+                                    Text("\(explainer.finished + 1) of \(explainer.total) · API busy, trying again \(retryAt, style: .relative)")
+                                } else {
+                                    Text("\(explainer.finished + 1) of \(explainer.total) · \(explainer.liveText.isEmpty ? "reading and thinking" : "writing")")
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         }
                     }
                 }

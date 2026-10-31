@@ -1,6 +1,6 @@
 //
 //  SourceImporterTests.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import Testing

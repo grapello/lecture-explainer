@@ -1,6 +1,6 @@
 //
 //  SampleData.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 // Everything in this file is wrapped in #if DEBUG, so it is left out of release builds.
@@ -66,26 +66,32 @@ enum SampleData {
         return container
     }
 
-    /// An explanation shaped like a real one, so the Markdown rendering can be seen.
+    /// An explanation shaped like a real one (Markdown with LaTeX formulas), so the
+    /// rendering can be seen.
     private static func exampleMarkdown(_ number: Int) -> String {
-        """
+        #"""
         ## Page 1: Introduction
 
-        Lecture \(number) is about the **wave function** ψ(x, t), which describes the state of a particle.
+        Lecture \#(number) is about the **wave function** $\psi(x, t)$, which describes the state of a particle.
 
         ## Pages 2–3: Probability
 
-        - |ψ(x, t)|² is the *probability density* of finding the particle at x.
+        - $|\psi(x, t)|^2$ is the *probability density* of finding the particle at $x$.
         - The total probability is 1:
-          ∫ |ψ(x, t)|² dx = 1
+
+        $$\int_{-\infty}^{\infty} |\psi(x, t)|^2 \, dx = 1$$
+
+        The state changes in time according to the Schrödinger equation:
+
+        $$i\hbar \frac{\partial \psi}{\partial t} = -\frac{\hbar^2}{2m} \frac{\partial^2 \psi}{\partial x^2} + V(x)\,\psi$$
 
         | Symbol | Meaning | Unit |
         |---|---|---|
-        | ψ | wave function | m^(-1/2) |
-        | ħ | reduced Planck constant | J·s |
+        | $\psi$ | wave function | $\mathrm{m}^{-1/2}$ |
+        | $\hbar$ | reduced Planck constant | J·s |
 
-        > Only |ψ|² can be measured, not ψ itself.
-        """
+        > Only $|\psi|^2$ can be measured, not $\psi$ itself.
+        """#
     }
 
     /// Draws a small real PDF (one text line per page) into the app's file store, so

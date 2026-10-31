@@ -1,0 +1,42 @@
+<!doctype html>
+<!-- The page MathMarkdownView shows. The explanation itself is put in by lexiaShow(). -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<link rel="stylesheet" href="katex.min.css">
+<style>
+    /* Follow the phone's light/dark mode and text size, so the page looks like the rest of the app. */
+    :root { color-scheme: light dark; }
+    html, body { margin: 0; padding: 0; background: transparent; }
+    body {
+        font: -apple-system-body;
+        color: CanvasText;
+        -webkit-text-size-adjust: 100%;
+        overflow-wrap: break-word;
+    }
+    #content { padding: 0 16px; overflow: hidden; }
+    h1, h2, h3, h4 { line-height: 1.25; margin: 1.1em 0 0.5em; }
+    h1 { font-size: 1.45em; }
+    h2 { font-size: 1.3em; }
+    h3 { font-size: 1.12em; }
+    p, ul, ol, blockquote, pre, table { margin: 0.6em 0; }
+    ul, ol { padding-left: 1.4em; }
+    li { margin: 0.25em 0; }
+    code, pre { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; }
+    pre { background: rgba(127, 127, 127, 0.15); padding: 10px 12px; border-radius: 8px; overflow-x: auto; }
+    :not(pre) > code { background: rgba(127, 127, 127, 0.15); padding: 1px 4px; border-radius: 4px; }
+    /* Wide tables and long equations scroll sideways instead of overflowing the screen. */
+    table { border-collapse: collapse; display: block; overflow-x: auto; }
+    th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid rgba(127, 127, 127, 0.3); }
+    blockquote { padding-left: 12px; border-left: 3px solid rgba(127, 127, 127, 0.5); opacity: 0.8; }
+    hr { border: none; border-top: 1px solid rgba(127, 127, 127, 0.3); }
+    .katex { font-size: 1.1em; }
+    .katex-display { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+</style>
+<script src="marked.min.js"></script>
+<script src="katex.min.js"></script>
+<script src="lexia-render.js"></script>
+</head>
+<body><div id="content"></div></body>
+</html>

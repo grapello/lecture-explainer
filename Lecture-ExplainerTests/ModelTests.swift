@@ -1,6 +1,6 @@
 //
 //  ModelTests.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import Testing

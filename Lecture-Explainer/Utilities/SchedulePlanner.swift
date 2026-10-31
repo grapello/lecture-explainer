@@ -1,6 +1,6 @@
 //
 //  SchedulePlanner.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import Foundation

@@ -1,6 +1,6 @@
 //
 //  ClaudeClientTests.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import Testing
@@ -60,7 +60,24 @@ struct ClaudeRequestTests {
         #expect(json["system"] as? String == "Be brief.")
         #expect(json["fallbacks"] as? String == "default")
         #expect((json["output_config"] as? [String: String])?["effort"] == "high")
-        #expect((json["messages"] as? [[String: String]])?.first?["content"] == "Hi")
+        let content = try #require((json["messages"] as? [[String: Any]])?.first?["content"] as? [[String: Any]])
+        #expect(content.count == 1)
+        #expect(content[0]["type"] as? String == "text")
+        #expect(content[0]["text"] as? String == "Hi")
+    }
+
+    @Test func sendsPDFsBeforeTheTextWithACacheMarker() throws {
+        let request = ClaudeRequest(documents: [ClaudeDocument(title: "Symbols.pdf", data: Data("%PDF".utf8), cacheUpToHere: true),
+                                                ClaudeDocument(title: "L01.pdf", data: Data("%PDF-1".utf8))],
+                                    userText: "Explain")
+        let json = try body(of: try ClaudeClient(apiKey: "k").makeURLRequest(request))
+        let content = try #require((json["messages"] as? [[String: Any]])?.first?["content"] as? [[String: Any]])
+        #expect(content.map { $0["type"] as? String } == ["document", "document", "text"])
+        let source = try #require(content[0]["source"] as? [String: String])
+        #expect(source == ["type": "base64", "media_type": "application/pdf", "data": Data("%PDF".utf8).base64EncodedString()])
+        #expect(content[0]["title"] as? String == "Symbols.pdf")
+        #expect((content[0]["cache_control"] as? [String: String]) == ["type": "ephemeral"])
+        #expect(content[1]["cache_control"] == nil)
     }
 
     @Test func leavesOutWhatAModelDoesNotSupport() throws {

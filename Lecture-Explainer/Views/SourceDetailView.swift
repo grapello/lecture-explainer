@@ -1,6 +1,6 @@
 //
 //  SourceDetailView.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import SwiftUI
@@ -66,7 +66,8 @@ struct SourceDetailView: View {
                     case .pages:
                         PageGrid(reader: reader)
                     case .text:
-                        // The exact text the app extracted, i.e. what Claude will read.
+                        // The text PDFKit finds in the file. Claude gets the PDF itself
+                        // (text and page images), so it also sees what isn't listed here.
                         Text(reader.fullText())
                             .font(.callout.monospaced())
                             .textSelection(.enabled)

@@ -1,6 +1,6 @@
 //
 //  KeychainStore.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import Foundation
@@ -16,6 +16,8 @@ import Security
 /// The Keychain API is an old C-style API: you describe an item with a dictionary
 /// of kSec… keys and get back an OSStatus code (errSecSuccess = 0 means OK).
 enum KeychainStore {
+    // The app's old name. Kept after the rename to Lexia: a different service name
+    // would no longer find keys that are already saved.
     static let service = "Lecture-Explainer"
     static let apiKeyAccount = "anthropic-api-key"
 

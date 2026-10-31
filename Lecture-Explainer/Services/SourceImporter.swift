@@ -1,6 +1,6 @@
 //
 //  SourceImporter.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import Foundation

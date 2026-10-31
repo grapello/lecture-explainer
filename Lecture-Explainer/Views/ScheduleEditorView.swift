@@ -1,6 +1,6 @@
 //
 //  ScheduleEditorView.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import SwiftUI

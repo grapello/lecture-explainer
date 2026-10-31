@@ -1,6 +1,6 @@
 //
 //  ClaudeClient.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import Foundation
@@ -47,11 +47,23 @@ enum ClaudeEffort: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// What to send. Kept small on purpose: one system prompt and one user message.
+/// A PDF sent along with the request. Claude reads both the text and an image of
+/// each page, so scanned slides and equations drawn as pictures come through too.
+struct ClaudeDocument: Equatable {
+    var title: String
+    var data: Data
+    /// Marks the end of the part of the request that repeats between requests (see
+    /// makeURLRequest). Only the last of the repeating documents should have it.
+    var cacheUpToHere = false
+}
+
+/// What to send. Kept small on purpose: one system prompt and one user message,
+/// which holds the PDFs (if any) followed by the text.
 struct ClaudeRequest {
     var model: ClaudeModel = .opus
     var effort: ClaudeEffort = .high
     var system: String?
+    var documents: [ClaudeDocument] = []
     var userText: String
     /// Upper limit for the reply, thinking included. Streaming allows a large value
     /// without timeouts; a value that's too small cuts the explanation off mid-sentence.
@@ -193,7 +205,23 @@ struct ClaudeClient {
     private struct Body: Encodable {
         struct Message: Encodable {
             var role: String
-            var content: String
+            var content: [Block]
+        }
+        /// One piece of a message: {"type": "text", "text": …} or
+        /// {"type": "document", "source": {"type": "base64", …}, "title": …}.
+        /// Fields that are nil are left out of the JSON.
+        struct Block: Encodable {
+            struct Source: Encodable {
+                var type = "base64"
+                var media_type = "application/pdf"
+                var data: String
+            }
+            struct CacheControl: Encodable { var type = "ephemeral" }
+            var type: String
+            var text: String?
+            var source: Source?
+            var title: String?
+            var cache_control: CacheControl?
         }
         struct OutputConfig: Encodable {
             var effort: String
@@ -229,12 +257,31 @@ struct ClaudeClient {
                         max_tokens: request.maxTokens,
                         stream: true,
                         system: request.system,
-                        messages: [.init(role: "user", content: request.userText)],
+                        messages: [.init(role: "user", content: Self.blocks(for: request))],
                         // Thinking can't be switched off on Opus 5.5; effort is the dial.
                         output_config: .init(effort: request.effort.rawValue),
                         fallbacks: fallbacks)
         urlRequest.httpBody = try JSONEncoder().encode(body)
         return urlRequest
+    }
+
+    /// The user message's blocks: PDFs first, then the text, which is the order the
+    /// API documentation recommends for documents.
+    ///
+    /// Prompt caching: the API can remember the start of a request for a few minutes,
+    /// and a later request that starts with exactly the same content pays a fraction
+    /// of the price for that part. A `cache_control` marker says where the repeating
+    /// part ends. When several lectures of a course are explained in a row, the system
+    /// prompt and the reference sheet are the same each time, so the marker goes on
+    /// the last reference document.
+    private static func blocks(for request: ClaudeRequest) -> [Body.Block] {
+        let documents = request.documents.map { document in
+            Body.Block(type: "document",
+                       source: .init(data: document.data.base64EncodedString()),
+                       title: document.title,
+                       cache_control: document.cacheUpToHere ? .init() : nil)
+        }
+        return documents + [Body.Block(type: "text", text: request.userText)]
     }
 
     /// Sends the request and yields the answer's text piece by piece.

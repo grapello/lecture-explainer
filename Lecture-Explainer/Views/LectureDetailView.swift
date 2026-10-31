@@ -1,6 +1,6 @@
 //
 //  LectureDetailView.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import SwiftUI
@@ -16,10 +16,16 @@ struct LectureDetailView: View {
     @State private var confirmingDelete = false
 
     // Read when the screen appears rather than on every redraw: the Keychain read
-    // and the PDF text extraction behind the prompt are too slow for that.
+    // and opening the PDFs behind the prompt are too slow for that.
     @State private var hasAPIKey = false
     @State private var prompt: LecturePrompt?
     @State private var copiedPrompt = false
+    @State private var sharing = false
+
+    /// The two ways a new explanation arrives. Kept while the "replace or keep
+    /// both?" question is open, so the answer knows what to continue with.
+    private enum NewExplanation { case api, paste }
+    @State private var askingToReplace: NewExplanation?
 
     private var explanations: [Explanation] {
         lecture.explanations.sorted { $0.createdAt > $1.createdAt }
@@ -129,31 +135,35 @@ struct LectureDetailView: View {
             if explainer.current == lecture {
                 HStack {
                     ProgressView()
-                    // Opus 5.5 thinks before writing, which can take a while for a long deck.
-                    Text(explainer.liveText.isEmpty ? "Claude is thinking…" : "Claude is writing…")
-                        .foregroundStyle(.secondary)
+                    if let retryAt = explainer.retryAt {
+                        // A busy API: the answer starts over at retryAt.
+                        Text("API busy, trying again \(retryAt, style: .relative)")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        // Opus 5.5 thinks before writing, which can take a while for a long deck.
+                        Text(explainer.liveText.isEmpty ? "Claude is reading and thinking…" : "Claude is writing…")
+                            .foregroundStyle(.secondary)
+                    }
                     Spacer()
                     Button("Stop", role: .destructive) { explainer.stop() }
                 }
                 if !explainer.liveText.isEmpty {
-                    MarkdownView(markdown: explainer.liveText)
+                    MathMarkdownView(markdown: explainer.liveText, scrolls: false)
+                        // Edge to edge inside the row; the page has its own margins.
+                        .listRowInsets(EdgeInsets())
                 }
             } else if lecture.sources.isEmpty {
                 Text("Add a deck to this lecture to explain it.")
                     .foregroundStyle(.secondary)
             } else {
                 if hasAPIKey {
-                    Button("Explain with Claude", systemImage: "sparkles") {
-                        explainer.explain([lecture], context: context)
-                    }
-                    .disabled(explainer.isRunning)
+                    Button("Explain with Claude", systemImage: "sparkles") { start(.api) }
+                        .disabled(explainer.isRunning)
                 }
                 if let prompt {
-                    // The share sheet lists the Claude app when it is installed.
-                    ShareLink(item: prompt.combined,
-                              preview: SharePreview("Lecture \(lecture.number) for Claude")) {
-                        Label("Send to Claude App", systemImage: "square.and.arrow.up")
-                    }
+                    // The share sheet gets the prompt and the PDFs together; it lists
+                    // the Claude app when it is installed.
+                    Button("Send to Claude App", systemImage: "square.and.arrow.up") { sharing = true }
                     Button(copiedPrompt ? "Prompt Copied" : "Copy Prompt",
                            systemImage: copiedPrompt ? "checkmark" : "doc.on.doc") {
                         UIPasteboard.general.string = prompt.combined
@@ -161,20 +171,18 @@ struct LectureDetailView: View {
                     }
                 }
                 // Reading the clipboard makes iOS ask "Allow Paste?" (it can be set to
-                // always allow under Settings > Lecture-Explainer). SwiftUI's PasteButton
+                // always allow under Settings > Lexia). SwiftUI's PasteButton
                 // avoids the question, but it is a fixed-style capsule that doesn't fit
                 // a list of rows like these.
-                Button("Paste Explanation", systemImage: "doc.on.clipboard") {
-                    savePasted(UIPasteboard.general.string ?? "")
-                }
+                Button("Paste Explanation", systemImage: "doc.on.clipboard") { start(.paste) }
             }
 
             if let failure = explainer.failure, failure.lecture == lecture {
                 Text(failure.message)
                     .foregroundStyle(.red)
             }
-            if let prompt, !prompt.emptyFiles.isEmpty {
-                Text("No text found in \(prompt.emptyFiles.joined(separator: ", ")). Claude won't see these pages (scanned or image-only).")
+            if let prompt, !prompt.unreadable.isEmpty {
+                Text("Can't send \(prompt.unreadable.joined(separator: ", ")): the file is missing or needs a password.")
                     .font(.callout)
                     .foregroundStyle(.orange)
             }
@@ -182,8 +190,25 @@ struct LectureDetailView: View {
             Text("Explain")
         } footer: {
             Text(hasAPIKey
-                 ? "Explain with Claude uses your API key. Send to Claude App uses your Claude plan instead: send, copy Claude's answer there, then tap Paste Explanation here to save it."
-                 : "Send to Claude App uses your Claude plan: send, copy Claude's answer there, then tap Paste Explanation here to save it. To explain directly in this app, save an API key in Settings.")
+                 ? "Explain with Claude uses your API key. Send to Claude App uses your Claude plan instead: send the prompt and PDFs, copy Claude's answer there, then tap Paste Explanation here to save it."
+                 : "Send to Claude App uses your Claude plan: send the prompt and PDFs, copy Claude's answer there, then tap Paste Explanation here to save it. To explain directly in this app, save an API key in Settings.")
+        }
+        .sheet(isPresented: $sharing) {
+            if let prompt {
+                ShareSheet(items: [prompt.combined] + prompt.attachments.map(\.url))
+            }
+        }
+        // Explaining again or pasting when an explanation exists: replace it, or keep both?
+        .confirmationDialog("Lecture \(lecture.number) already has an explanation",
+                            isPresented: Binding(get: { askingToReplace != nil },
+                                                 set: { if !$0 { askingToReplace = nil } }),
+                            titleVisibility: .visible, presenting: askingToReplace) { kind in
+            Button("Replace the Old One", role: .destructive) { finish(kind, replacing: true) }
+            Button("Keep Both") { finish(kind, replacing: false) }
+        } message: { kind in
+            Text(kind == .api
+                 ? "Replace deletes the old explanation once the new one has been saved."
+                 : "Replace deletes the old explanation and saves the pasted one.")
         }
         .task(id: copiedPrompt) {
             // Show "Prompt Copied" for two seconds, then go back to "Copy Prompt".
@@ -193,9 +218,30 @@ struct LectureDetailView: View {
         }
     }
 
-    private func savePasted(_ text: String) {
+    /// Asks "replace or keep both?" first if the lecture is already explained.
+    private func start(_ kind: NewExplanation) {
+        if lecture.explanations.isEmpty {
+            finish(kind, replacing: false)
+        } else {
+            askingToReplace = kind
+        }
+    }
+
+    private func finish(_ kind: NewExplanation, replacing: Bool) {
+        switch kind {
+        case .api:
+            explainer.explain([lecture], replacing: replacing, context: context)
+        case .paste:
+            savePasted(UIPasteboard.general.string ?? "", replacing: replacing)
+        }
+    }
+
+    private func savePasted(_ text: String, replacing: Bool) {
         let markdown = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !markdown.isEmpty else { return }
+        if replacing {
+            for old in lecture.explanations { context.delete(old) }
+        }
         let title = lecture.title.isEmpty ? "Lecture \(lecture.number)" : "Lecture \(lecture.number): \(lecture.title)"
         let explanation = Explanation(markdown: markdown, title: title)
         explanation.lecture = lecture
@@ -241,21 +287,18 @@ struct AddLectureView: View {
     }
 }
 
-/// An explanation, rendered from its Markdown, with a Copy button.
+/// An explanation, rendered from its Markdown with typeset formulas, with a Copy button.
 struct ExplanationView: View {
     let explanation: Explanation
     @State private var copied = false
 
     var body: some View {
-        ScrollView {
-            MarkdownView(markdown: explanation.markdown)
-                .padding()
-        }
+        MathMarkdownView(markdown: explanation.markdown)
         .navigationTitle(explanation.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            // Copies the Markdown source, which pastes well into notes apps and
-            // Claude alike.
+            // Copies the Markdown source (formulas as LaTeX), which pastes well into
+            // notes apps, Obsidian and Claude alike.
             Button(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc") {
                 UIPasteboard.general.string = explanation.markdown
                 copied = true
@@ -267,6 +310,18 @@ struct ExplanationView: View {
             copied = false
         }
     }
+}
+
+/// The system share sheet (UIActivityViewController). SwiftUI's ShareLink can't
+/// share a text and several files in one go, which "Send to Claude App" needs.
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 #Preview {

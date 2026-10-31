@@ -1,6 +1,6 @@
 //
 //  SettingsView.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import SwiftUI

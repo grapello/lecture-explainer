@@ -1,6 +1,6 @@
 //
 //  InstructionsEditorView.swift
-//  Lecture-Explainer
+//  Lexia
 //
 
 import SwiftUI
